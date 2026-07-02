@@ -49,7 +49,7 @@ workflows:
         - vivo_api
       ios_signing:
         distribution_type: app_store
-        bundle_identifier: $BUNDLE_ID
+        bundle_identifier: com.zhishi.timeweaver
     scripts:
       - name: Flutter pub get
         script: |
@@ -71,7 +71,6 @@ workflows:
       - name: Verify release environment
         script: |
           cd timeweaver_flutter
-          : "${BUNDLE_ID:?Set BUNDLE_ID in Codemagic environment variables, for example com.zhishi.timeweaver}"
           : "${VLM_APP_ID:?Set VLM_APP_ID in Codemagic environment variables}"
           : "${VLM_API_KEY:?Set VLM_API_KEY in Codemagic environment variables}"
       - name: Apply Codemagic iOS signing profiles
