@@ -67,3 +67,10 @@ ocr_*.txt
 stitch_zhisishi_onboarding*/
 
 issue_latest.docx
+
+*.apk
+*.aab
+*.ipa
+*.xcarchive
+**/build/
+**/artifacts/*.apk
