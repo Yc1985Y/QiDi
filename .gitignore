@@ -4,9 +4,59 @@
 local.properties
 /build/
 **/build/
-*.png
-*.pdf
+
+# Flutter / Dart generated files
+.dart_tool/
+**/.dart_tool/
+.flutter-plugins
+.flutter-plugins-dependencies
+.pub-cache/
+.pub/
+coverage/
+
+# iOS generated files
+ios/Pods/
+**/ios/Pods/
+**/DerivedData/
+**/xcuserdata/
+**/*.xcarchive/
+
+# Android / mobile build outputs
+*.apk
+*.aab
+*.ipa
+
+# Archives and generated binary reports
 *.zip
+*.7z
+*.rar
+*.pptx
+*.docx
+
+# Local generated report dependencies
+report_assets/vendor/
+**/report_assets/vendor/
+
+# Local verification screenshots
+/*.png
+织时_Android原型/*.png
+**/artifacts/*.png
+**/report_assets/repaired_images/
+
+# Secrets, certificates, and signing material
+*.env
+.env
+.env.*
+*.jks
+*.keystore
+*.p8
+*.p12
+*.cer
+*.cert
+*.mobileprovision
+*.provisionprofile
+*.xcconfig.local
+
 tmp_vivo_*
 curl_*.txt
 llm_*.txt
@@ -15,7 +65,5 @@ ocr_*.txt
 *_backup_*/
 *_gitee_latest/
 stitch_zhisishi_onboarding*/
-
-issue_latest.docx
 
 issue_latest.docx
