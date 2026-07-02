@@ -77,7 +77,7 @@ iOS 构建必须使用 macOS、Xcode 和 Apple 签名工具链。普通 Linux/Wi
 当前 iOS Runner 的 Bundle Identifier 是：
 
 ```text
-com.zhishi.timeweaverFlutter
+com.zhishi.timeweaver
 ```
 
 正式上架前建议确认是否使用这个 ID。如果要修改，需要同步修改：

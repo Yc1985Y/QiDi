@@ -6,7 +6,7 @@
 
 ## App 身份
 
-- [ ] Bundle Identifier 已确定，建议当前值：`com.zhishi.timeweaverFlutter`
+- [ ] Bundle Identifier 已确定，建议当前值：`com.zhishi.timeweaver`
 - [ ] Apple Developer App ID 已创建。
 - [ ] App Store Connect App 记录已创建。
 - [ ] Display Name 为：`织时`

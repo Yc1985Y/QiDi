@@ -22,7 +22,8 @@ workflows:
           flutter test
       - name: Install iOS pods
         script: |
-          cd timeweaver_flutter/ios
+          cd timeweaver_flutter
+          cd ios
           pod install --repo-update
       - name: Build iOS release without codesign
         script: |
@@ -46,8 +47,6 @@ workflows:
       groups:
         - ios_signing
         - vivo_api
-      vars:
-        BUNDLE_ID: $BUNDLE_ID
       ios_signing:
         distribution_type: app_store
         bundle_identifier: $BUNDLE_ID
@@ -66,8 +65,15 @@ workflows:
           flutter test
       - name: Install iOS pods
         script: |
-          cd timeweaver_flutter/ios
+          cd timeweaver_flutter
+          cd ios
           pod install --repo-update
+      - name: Verify release environment
+        script: |
+          cd timeweaver_flutter
+          : "${BUNDLE_ID:?Set BUNDLE_ID in Codemagic environment variables, for example com.zhishi.timeweaver}"
+          : "${VLM_APP_ID:?Set VLM_APP_ID in Codemagic environment variables}"
+          : "${VLM_API_KEY:?Set VLM_API_KEY in Codemagic environment variables}"
       - name: Apply Codemagic iOS signing profiles
         script: |
           cd timeweaver_flutter
