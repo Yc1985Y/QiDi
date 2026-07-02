@@ -1,0 +1,89 @@
+workflows:
+  ios-build-check:
+    name: iOS build check
+    max_build_duration: 60
+    instance_type: mac_mini_m2
+    environment:
+      flutter: stable
+      xcode: latest
+      cocoapods: default
+    scripts:
+      - name: Flutter pub get
+        script: |
+          cd timeweaver_flutter
+          flutter pub get
+      - name: Flutter analyze
+        script: |
+          cd timeweaver_flutter
+          flutter analyze
+      - name: Flutter test
+        script: |
+          cd timeweaver_flutter
+          flutter test
+      - name: Install iOS pods
+        script: |
+          cd timeweaver_flutter/ios
+          pod install --repo-update
+      - name: Build iOS release without codesign
+        script: |
+          cd timeweaver_flutter
+          flutter build ios --release --no-codesign
+    artifacts:
+      - timeweaver_flutter/build/ios/iphoneos/Runner.app
+      - timeweaver_flutter/build/ios/iphoneos/*.app
+      - timeweaver_flutter/build/ios/**/*.log
+
+  ios-testflight-release:
+    name: iOS TestFlight release
+    max_build_duration: 90
+    instance_type: mac_mini_m2
+    integrations:
+      app_store_connect: codemagic_app_store_connect
+    environment:
+      flutter: stable
+      xcode: latest
+      cocoapods: default
+      groups:
+        - ios_signing
+        - vivo_api
+      vars:
+        BUNDLE_ID: $BUNDLE_ID
+      ios_signing:
+        distribution_type: app_store
+        bundle_identifier: $BUNDLE_ID
+    scripts:
+      - name: Flutter pub get
+        script: |
+          cd timeweaver_flutter
+          flutter pub get
+      - name: Flutter analyze
+        script: |
+          cd timeweaver_flutter
+          flutter analyze
+      - name: Flutter test
+        script: |
+          cd timeweaver_flutter
+          flutter test
+      - name: Install iOS pods
+        script: |
+          cd timeweaver_flutter/ios
+          pod install --repo-update
+      - name: Apply Codemagic iOS signing profiles
+        script: |
+          cd timeweaver_flutter
+          xcode-project use-profiles
+      - name: Build signed IPA
+        script: |
+          cd timeweaver_flutter
+          flutter build ipa --release \
+            --export-options-plist=/Users/builder/export_options.plist \
+            --dart-define=VLM_APP_ID=$VLM_APP_ID \
+            --dart-define=VLM_API_KEY=$VLM_API_KEY
+    artifacts:
+      - timeweaver_flutter/build/ios/ipa/*.ipa
+      - /tmp/xcodebuild_logs/*.log
+      - flutter_drive.log
+    publishing:
+      app_store_connect:
+        auth: integration
+        submit_to_testflight: true

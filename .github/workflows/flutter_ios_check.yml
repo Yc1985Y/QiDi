@@ -1,0 +1,44 @@
+name: Flutter iOS build check
+
+on:
+  push:
+    branches:
+      - main
+      - master
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  ios-build-check:
+    name: Analyze, test, and build iOS without codesign
+    runs-on: macos-latest
+    defaults:
+      run:
+        working-directory: timeweaver_flutter
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          cache: true
+
+      - name: Flutter pub get
+        run: flutter pub get
+
+      - name: Flutter analyze
+        run: flutter analyze
+
+      - name: Flutter test
+        run: flutter test
+
+      - name: Install iOS pods
+        run: |
+          cd ios
+          pod install --repo-update
+
+      - name: Build iOS release without codesign
+        run: flutter build ios --release --no-codesign

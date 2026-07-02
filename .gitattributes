@@ -1,0 +1,18 @@
+* text=auto eol=crlf
+
+*.kt text eol=crlf
+*.java text eol=crlf
+*.xml text eol=crlf
+*.gradle text eol=crlf
+*.properties text eol=crlf
+*.md text eol=crlf
+
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.webp binary
+*.ico binary
+*.pdf binary
+*.zip binary
+*.apk binary
+

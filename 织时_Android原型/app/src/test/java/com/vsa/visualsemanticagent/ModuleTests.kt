@@ -1,0 +1,364 @@
+package com.vsa.visualsemanticagent
+
+import com.vsa.visualsemanticagent.decision.ExecutionMode
+import com.vsa.visualsemanticagent.decision.ExecutablePayload
+import com.vsa.visualsemanticagent.decision.FrameIntentObservation
+import com.vsa.visualsemanticagent.decision.VisualActionIntentSchema
+import com.vsa.visualsemanticagent.decision.ContinuousVisionCoordinator
+import com.vsa.visualsemanticagent.decision.FrameQualitySnapshot
+import com.vsa.visualsemanticagent.decision.GuidanceType
+import com.vsa.visualsemanticagent.decision.RiskPolicyEngine
+import com.vsa.visualsemanticagent.decision.StabilizerStatus
+import com.vsa.visualsemanticagent.decision.TemporalIntentStabilizer
+import com.vsa.visualsemanticagent.model.ModelConstants
+import com.vsa.visualsemanticagent.model.VLMPayload
+import com.vsa.visualsemanticagent.model.VLMResponse
+import com.vsa.visualsemanticagent.network.MockVLMResponseFactory
+import com.vsa.visualsemanticagent.utils.JsonCleansingUtils
+import com.vsa.visualsemanticagent.utils.NoticeSegmentExtractor
+import com.vsa.visualsemanticagent.utils.ResponseInterpreter
+import org.junit.Assert.assertEquals
+import org.junit.Assert.assertNotNull
+import org.junit.Assert.assertTrue
+import org.junit.Test
+
+class ModuleTests {
+
+    @Test
+    fun extractJsonFromDirtyText_returnsInnerJson() {
+        val dirty = "Result: {\"action\":\"tts_feedback\",\"answer\":\"test\"}"
+        val json = JsonCleansingUtils.extractJsonFromDirtyText(dirty)
+
+        assertEquals("{\"action\":\"tts_feedback\",\"answer\":\"test\"}", json)
+    }
+
+    @Test
+    fun removeMarkdownWrappers_removesCodeFence() {
+        val wrapped = "```json\n{\"action\":\"unknown\"}\n```"
+        val json = JsonCleansingUtils.removeMarkdownWrappers(wrapped)
+
+        assertEquals("{\"action\":\"unknown\"}", json)
+    }
+
+    @Test
+    fun normalizeResponse_mapsUnknownActionToUnknown() {
+        val raw = VLMResponse(
+            action = "CREATE_MEETING",
+            payload = VLMPayload(
+                title = "  demo event  ",
+                answer = "  ok  ",
+                phoneNumber = " 138-0013-8000 "
+            )
+        )
+
+        val normalized = ResponseInterpreter.normalize(raw)
+
+        assertEquals(ModelConstants.ACTION_UNKNOWN, normalized.action)
+        assertEquals("demo event", normalized.title)
+        assertEquals("ok", normalized.answer)
+        assertEquals("13800138000", normalized.phoneNumber)
+    }
+
+    @Test
+    fun normalizeResponse_normalizesPhoneAndTime() {
+        val raw = VLMResponse(
+            action = ModelConstants.ACTION_UNKNOWN,
+            confidence = 1.2,
+            payload = VLMPayload(
+                phoneNumber = " +86 138-0013-8000 ",
+                time = "2026-05-20 14:30:00"
+            )
+        )
+
+        val normalized = ResponseInterpreter.normalize(raw)
+
+        assertEquals("+8613800138000", normalized.phoneNumber)
+        assertEquals("2026-05-20T14:30:00", normalized.time)
+        assertEquals(1.0, normalized.confidence ?: 0.0, 0.0001)
+    }
+
+    @Test
+    fun noticeSegmentExtractor_splitsInlineMultiScheduleNotice() {
+        val source = "青年志愿服务：周二12点院楼集合，周三11点图书馆集合。"
+
+        val segments = NoticeSegmentExtractor.extractIndependentScheduleSegments(source)
+
+        assertEquals(2, segments.size)
+        assertTrue(segments[0].contains("周二12点"))
+        assertTrue(segments[1].contains("周三11点"))
+        assertTrue(segments.all { it.contains("青年志愿服务") })
+    }
+
+    @Test
+    fun noticeSegmentExtractor_splitsMultiLineScheduleNotice() {
+        val source = """
+            创新创业讲座
+            周二 12:00 院楼 201
+            学习分享会
+            周三 11:00 图书馆报告厅
+        """.trimIndent()
+
+        val segments = NoticeSegmentExtractor.extractIndependentScheduleSegments(source)
+
+        assertEquals(2, segments.size)
+        assertTrue(segments[0].contains("周二 12:00"))
+        assertTrue(segments[1].contains("周三 11:00"))
+    }
+
+    @Test
+    fun mockFactory_returnsCampusLectureEventForLecturePrompt() {
+        val response = MockVLMResponseFactory.buildResponse("帮我把这个讲座加入日程")
+
+        assertEquals(ModelConstants.ACTION_CREATE_EVENT, response.action)
+        assertTrue(response.payload?.title?.contains("讲座") == true)
+        assertNotNull(response.payload?.time)
+        assertNotNull(response.payload?.location)
+    }
+
+    @Test
+    fun visualActionIntentSchema_buildsFusedConfidence() {
+        val response = VLMResponse(
+            action = ModelConstants.ACTION_CREATE_EVENT,
+            confidence = 0.9,
+            payload = VLMPayload(
+                title = "AI Lecture",
+                time = "2026-05-08T09:00:00",
+                location = "Library Hall"
+            )
+        )
+
+        val intent = VisualActionIntentSchema.fromResponse(
+            response = response,
+            qualityConfidence = 0.8,
+            stabilityConfidence = 0.85
+        )
+
+        assertEquals("campus_schedule_agent", intent.scene)
+        assertTrue(intent.requiresConfirmation)
+        assertEquals(ModelConstants.ACTION_CREATE_EVENT, intent.action)
+        assertTrue(intent.fusedConfidence > 0.84)
+    }
+
+    @Test
+    fun riskPolicyEngine_requiresConfirmationForMediumRiskAction() {
+        val engine = RiskPolicyEngine()
+        val intent = VisualActionIntentSchema.fromResponse(
+            VLMResponse(
+                action = ModelConstants.ACTION_NAVIGATE,
+                confidence = 0.88,
+                payload = VLMPayload(location = "Information Building A201")
+            )
+        )
+
+        val suggestion = engine.evaluate(intent)
+
+        assertEquals(ExecutionMode.REQUIRE_CONFIRMATION, suggestion.mode)
+    }
+
+    @Test
+    fun riskPolicyEngine_requiresClarificationWhenCampusEventTimeMissing() {
+        val engine = RiskPolicyEngine()
+        val intent = VisualActionIntentSchema.fromResponse(
+            VLMResponse(
+                action = ModelConstants.ACTION_CREATE_EVENT,
+                confidence = 0.92,
+                payload = VLMPayload(
+                    title = "就业宣讲会",
+                    location = "大学生活动中心"
+                )
+            )
+        )
+
+        val suggestion = engine.evaluate(intent)
+
+        assertEquals(ExecutionMode.REQUIRE_CLARIFICATION, suggestion.mode)
+        assertTrue(suggestion.validation.issues.any { it.contains("time") })
+    }
+
+    @Test
+    fun reviewedClarification_promotesToConfirmableCampusEventWhenTitleAndTimeProvided() {
+        val engine = RiskPolicyEngine()
+        val original = VisualActionIntentSchema.fromResponse(
+            VLMResponse(
+                action = ModelConstants.ACTION_CLARIFICATION,
+                confidence = 0.42,
+                fallbackQuery = "通知信息不完整，建议补充确认",
+                payload = VLMPayload(description = "请补充活动标题和时间")
+            )
+        )
+
+        val reviewed = original.withReviewedSchedulePayload(
+            ExecutablePayload(
+                title = "导师组会",
+                time = "2026-05-25T15:00:00",
+                location = "信息楼 A201",
+                description = "由用户在解析校验页补充"
+            )
+        )
+        val suggestion = engine.evaluate(reviewed)
+
+        assertEquals(ModelConstants.ACTION_CREATE_EVENT, reviewed.action)
+        assertTrue(reviewed.requiresConfirmation)
+        assertEquals(ExecutionMode.REQUIRE_CONFIRMATION, suggestion.mode)
+    }
+
+    @Test
+    fun riskPolicyEngine_requiresConfirmationForValidCampusEvent() {
+        val engine = RiskPolicyEngine()
+        val intent = VisualActionIntentSchema.fromResponse(
+            VLMResponse(
+                action = ModelConstants.ACTION_CREATE_EVENT,
+                confidence = 0.9,
+                payload = VLMPayload(
+                    title = "人工智能前沿讲座",
+                    time = "2026-05-20T14:30:00",
+                    location = "图书馆报告厅"
+                )
+            )
+        )
+
+        val suggestion = engine.evaluate(intent)
+
+        assertEquals(ExecutionMode.REQUIRE_CONFIRMATION, suggestion.mode)
+    }
+
+    @Test
+    fun riskPolicyEngine_allowsDirectTtsForLowRiskAction() {
+        val engine = RiskPolicyEngine()
+        val intent = VisualActionIntentSchema.fromResponse(
+            VLMResponse(
+                action = ModelConstants.ACTION_TTS_FEEDBACK,
+                confidence = 0.91,
+                payload = VLMPayload(answer = "The registration desk is on your right")
+            )
+        )
+
+        val suggestion = engine.evaluate(intent)
+
+        assertEquals(ExecutionMode.DIRECT_TTS, suggestion.mode)
+    }
+
+    @Test
+    fun temporalIntentStabilizer_requiresConsistentFramesBeforeReady() {
+        val stabilizer = TemporalIntentStabilizer(
+            requiredConsistentFrames = 3,
+            minConfidence = 0.8,
+            maxWindowSize = 5
+        )
+
+        val intent = VisualActionIntentSchema.fromResponse(
+            VLMResponse(
+                action = ModelConstants.ACTION_NAVIGATE,
+                confidence = 0.88,
+                payload = VLMPayload(location = "Library Hall")
+            )
+        )
+
+        val first = stabilizer.observe(FrameIntentObservation(1L, intent))
+        val second = stabilizer.observe(FrameIntentObservation(2L, intent))
+        val third = stabilizer.observe(FrameIntentObservation(3L, intent))
+
+        assertEquals(StabilizerStatus.WAITING, first.status)
+        assertEquals(StabilizerStatus.WAITING, second.status)
+        assertEquals(StabilizerStatus.READY_FOR_CONFIRMATION, third.status)
+        assertEquals(3, third.matchedFrames)
+        assertEquals("temporal voting passed", third.reason)
+    }
+
+    @Test
+    fun temporalIntentStabilizer_rejectsLowFusedConfidenceLatestFrame() {
+        val stabilizer = TemporalIntentStabilizer(
+            requiredConsistentFrames = 2,
+            minConfidence = 0.8,
+            maxWindowSize = 4
+        )
+
+        val strongIntent = VisualActionIntentSchema.fromResponse(
+            VLMResponse(
+                action = ModelConstants.ACTION_TTS_FEEDBACK,
+                confidence = 0.86,
+                payload = VLMPayload(answer = "registration desk is ahead")
+            )
+        )
+        val weakIntent = VisualActionIntentSchema.fromResponse(
+            VLMResponse(
+                action = ModelConstants.ACTION_TTS_FEEDBACK,
+                confidence = 0.3,
+                payload = VLMPayload(answer = "registration desk is ahead")
+            )
+        )
+
+        stabilizer.observe(FrameIntentObservation(1L, strongIntent))
+        val result = stabilizer.observe(FrameIntentObservation(2L, weakIntent))
+
+        assertEquals(StabilizerStatus.WAITING, result.status)
+        assertEquals("latest confidence below threshold", result.reason)
+    }
+
+    @Test
+    fun continuousVisionCoordinator_guidesUserWhenNoReadableText() {
+        val coordinator = ContinuousVisionCoordinator()
+
+        val result = coordinator.evaluate(
+            frameId = 1L,
+            quality = FrameQualitySnapshot(
+                hasReadableText = false,
+                sharpness = 0.9,
+                exposure = 0.8
+            ),
+            candidateIntent = null
+        )
+
+        assertEquals(GuidanceType.SEARCH_TARGET, result.cue.type)
+        assertTrue(!result.shouldAutoCapture)
+    }
+
+    @Test
+    fun continuousVisionCoordinator_autoCapturesAfterStableIntent() {
+        val coordinator = ContinuousVisionCoordinator(
+            stabilizer = TemporalIntentStabilizer(
+                requiredConsistentFrames = 2,
+                minConfidence = 0.8,
+                maxWindowSize = 4
+            )
+        )
+
+        val intent = VisualActionIntentSchema.fromResponse(
+            VLMResponse(
+                action = ModelConstants.ACTION_CREATE_EVENT,
+                confidence = 0.9,
+                payload = VLMPayload(
+                    title = "Exam Briefing",
+                    time = "2026-05-08T09:00:00",
+                    location = "Teaching Building B301"
+                )
+            )
+        )
+
+        val quality = FrameQualitySnapshot(
+            hasReadableText = true,
+            sharpness = 0.82,
+            exposure = 0.77,
+            targetCenterX = 0.5,
+            targetCenterY = 0.5,
+            targetAreaRatio = 0.18
+        )
+
+        val first = coordinator.evaluate(
+            frameId = 1L,
+            quality = quality,
+            candidateIntent = intent
+        )
+        val second = coordinator.evaluate(
+            frameId = 2L,
+            quality = quality,
+            candidateIntent = intent
+        )
+
+        assertEquals(GuidanceType.READY_TO_PARSE, first.cue.type)
+        assertTrue(!first.shouldAutoCapture)
+        assertEquals(GuidanceType.AUTO_CAPTURE, second.cue.type)
+        assertTrue(second.shouldAutoCapture)
+        assertEquals(StabilizerStatus.READY_FOR_CONFIRMATION, second.stableIntentDecision?.status)
+    }
+}
