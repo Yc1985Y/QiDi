@@ -332,8 +332,11 @@ class _InputEnergyHubCardState extends State<_InputEnergyHubCard> {
                     onPressed: controller.isBusy ? null : _pasteFromClipboard,
                     icon: const Icon(Icons.content_paste_rounded),
                   ),
-                  suffixIcon: hasText
-                      ? IconButton(
+                  suffixIcon: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      if (hasText)
+                        IconButton(
                           tooltip: '清空输入',
                           onPressed: controller.isBusy
                               ? null
@@ -346,20 +349,22 @@ class _InputEnergyHubCardState extends State<_InputEnergyHubCard> {
                                   });
                                 },
                           icon: const Icon(Icons.close_rounded),
-                        )
-                      : IconButton(
-                          tooltip: isListening ? '停止语音' : '开始语音',
-                          onPressed: controller.isBusy
-                              ? null
-                              : isListening
-                              ? _stopVoice
-                              : _startVoice,
-                          icon: Icon(
-                            isListening
-                                ? Icons.stop_circle_outlined
-                                : Icons.mic_rounded,
-                          ),
                         ),
+                      IconButton(
+                        tooltip: isListening ? '停止语音' : '开始语音',
+                        onPressed: controller.isBusy
+                            ? null
+                            : isListening
+                            ? _stopVoice
+                            : _startVoice,
+                        icon: Icon(
+                          isListening
+                              ? Icons.stop_circle_outlined
+                              : Icons.mic_rounded,
+                        ),
+                      ),
+                    ],
+                  ),
                   border: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(20),
                     borderSide: const BorderSide(color: AppColors.border),

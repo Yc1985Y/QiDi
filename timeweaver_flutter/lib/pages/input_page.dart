@@ -38,10 +38,7 @@ class _InputPageState extends State<InputPage> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(
-            '自动识别通知',
-            style: Theme.of(context).textTheme.headlineMedium,
-          ),
+          Text('自动识别通知', style: Theme.of(context).textTheme.headlineMedium),
           const SizedBox(height: 12),
           _CaptureEntryCard(
             enabled: !widget.controller.isBusy && !isListening,
@@ -59,11 +56,16 @@ class _InputPageState extends State<InputPage> {
               fillColor: AppColors.background,
               prefixIcon: IconButton(
                 tooltip: '读取剪贴板',
-                onPressed: widget.controller.isBusy ? null : _pasteFromClipboard,
+                onPressed: widget.controller.isBusy
+                    ? null
+                    : _pasteFromClipboard,
                 icon: const Icon(Icons.content_paste_rounded),
               ),
-              suffixIcon: hasText
-                  ? IconButton(
+              suffixIcon: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  if (hasText)
+                    IconButton(
                       tooltip: '清空输入',
                       onPressed: widget.controller.isBusy
                           ? null
@@ -76,20 +78,22 @@ class _InputPageState extends State<InputPage> {
                               });
                             },
                       icon: const Icon(Icons.close_rounded),
-                    )
-                  : IconButton(
-                      tooltip: isListening ? '停止语音' : '开始语音',
-                      onPressed: widget.controller.isBusy
-                          ? null
-                          : isListening
-                          ? _stopVoice
-                          : _startVoice,
-                      icon: Icon(
-                        isListening
-                            ? Icons.stop_circle_outlined
-                            : Icons.mic_none_rounded,
-                      ),
                     ),
+                  IconButton(
+                    tooltip: isListening ? '停止语音' : '开始语音',
+                    onPressed: widget.controller.isBusy
+                        ? null
+                        : isListening
+                        ? _stopVoice
+                        : _startVoice,
+                    icon: Icon(
+                      isListening
+                          ? Icons.stop_circle_outlined
+                          : Icons.mic_none_rounded,
+                    ),
+                  ),
+                ],
+              ),
               border: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(18),
                 borderSide: const BorderSide(color: AppColors.border),
@@ -132,9 +136,7 @@ class _InputPageState extends State<InputPage> {
                 label: const Text('相册'),
               ),
               OutlinedButton.icon(
-                onPressed: widget.controller.isBusy
-                    ? null
-                    : _openLiveCamera,
+                onPressed: widget.controller.isBusy ? null : _openLiveCamera,
                 icon: const Icon(Icons.photo_camera_outlined),
                 label: const Text('拍照'),
               ),
@@ -233,9 +235,9 @@ class _InputPageState extends State<InputPage> {
     final text = data?.text?.trim() ?? '';
     if (text.isEmpty) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('剪贴板里没有可导入的文本')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('剪贴板里没有可导入的文本')));
       return;
     }
     setState(() {
@@ -296,9 +298,9 @@ class _CaptureEntryCard extends StatelessWidget {
               Expanded(
                 child: Text(
                   '拍照识别',
-                  style: Theme.of(context).textTheme.headlineMedium?.copyWith(
-                    fontSize: 28,
-                  ),
+                  style: Theme.of(
+                    context,
+                  ).textTheme.headlineMedium?.copyWith(fontSize: 28),
                 ),
               ),
             ],

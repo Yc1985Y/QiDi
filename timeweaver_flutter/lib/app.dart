@@ -522,9 +522,15 @@ class AppController extends ChangeNotifier {
     isVoiceListening = true;
     errorMessage = null;
     statusMessage = '正在听写语音';
+    var recognizedAnyText = false;
     notifyListeners();
     await speechService.listen(
-      onText: onText,
+      onText: (text) {
+        recognizedAnyText = text.trim().isNotEmpty;
+        onText(text);
+        statusMessage = '语音正在转写';
+        notifyListeners();
+      },
       onError: (message) {
         errorMessage = message;
         statusMessage = '语音识别未完成';
@@ -537,6 +543,12 @@ class AppController extends ChangeNotifier {
             status: '反馈',
           ),
         );
+        notifyListeners();
+      },
+      onDone: () {
+        if (!isVoiceListening) return;
+        isVoiceListening = false;
+        statusMessage = recognizedAnyText ? '语音已转写，可继续解析' : '语音识别未返回文本';
         notifyListeners();
       },
     );
