@@ -1,4 +1,6 @@
 import '../models/event_item.dart';
+import '../models/export_record.dart';
+import '../models/inbox_message.dart';
 import '../models/parsed_notice.dart';
 import '../models/user_preference.dart';
 import '../services/storage_service.dart';
@@ -15,6 +17,12 @@ class EventRepository {
 
   Future<UserPreference> loadPreference() => _storageService.loadPreference();
 
+  Future<List<InboxMessage>> loadInboxMessages() =>
+      _storageService.loadInboxMessages();
+
+  Future<List<ExportRecord>> loadExportRecords() =>
+      _storageService.loadExportRecords();
+
   Future<void> saveEvents(List<EventItem> events) =>
       _storageService.saveEvents(events);
 
@@ -23,4 +31,10 @@ class EventRepository {
 
   Future<void> savePreference(UserPreference preference) =>
       _storageService.savePreference(preference);
+
+  Future<void> saveInboxMessages(List<InboxMessage> messages) =>
+      _storageService.saveInboxMessages(messages);
+
+  Future<void> saveExportRecords(List<ExportRecord> records) =>
+      _storageService.saveExportRecords(records);
 }

@@ -166,33 +166,40 @@ class StatusStrip extends StatelessWidget {
 }
 
 class InfoChip extends StatelessWidget {
-  const InfoChip({super.key, required this.label, this.icon});
+  const InfoChip({
+    super.key,
+    required this.label,
+    this.icon,
+    this.backgroundColor = AppColors.surfaceWarm,
+    this.contentColor = AppColors.primary,
+  });
 
   final String label;
   final IconData? icon;
+  final Color backgroundColor;
+  final Color contentColor;
 
   @override
   Widget build(BuildContext context) {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
       decoration: BoxDecoration(
-        color: AppColors.surfaceWarm,
+        color: backgroundColor,
         borderRadius: BorderRadius.circular(99),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
           if (icon != null) ...[
-            Icon(icon, size: 14, color: AppColors.primary),
+            Icon(icon, size: 14, color: contentColor),
             const SizedBox(width: 5),
           ],
           Text(
             label,
             style: const TextStyle(
               fontWeight: FontWeight.w700,
-              color: AppColors.primary,
               fontSize: 12,
-            ),
+            ).copyWith(color: contentColor),
           ),
         ],
       ),

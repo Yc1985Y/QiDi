@@ -4,6 +4,12 @@ class UserPreference {
     this.school = '',
     this.major = '',
     this.grade = '',
+    this.avatarPath = '',
+    this.signature = '',
+    this.birthday = '',
+    this.age = '',
+    this.gender = '',
+    this.hometown = '',
     this.reminderLeadMinutes = 60,
     this.dayReminderEnabled = true,
     this.hourReminderEnabled = true,
@@ -17,6 +23,12 @@ class UserPreference {
   final String school;
   final String major;
   final String grade;
+  final String avatarPath;
+  final String signature;
+  final String birthday;
+  final String age;
+  final String gender;
+  final String hometown;
   final int reminderLeadMinutes;
   final bool dayReminderEnabled;
   final bool hourReminderEnabled;
@@ -30,6 +42,12 @@ class UserPreference {
     String? school,
     String? major,
     String? grade,
+    String? avatarPath,
+    String? signature,
+    String? birthday,
+    String? age,
+    String? gender,
+    String? hometown,
     int? reminderLeadMinutes,
     bool? dayReminderEnabled,
     bool? hourReminderEnabled,
@@ -43,6 +61,12 @@ class UserPreference {
       school: school ?? this.school,
       major: major ?? this.major,
       grade: grade ?? this.grade,
+      avatarPath: avatarPath ?? this.avatarPath,
+      signature: signature ?? this.signature,
+      birthday: birthday ?? this.birthday,
+      age: age ?? this.age,
+      gender: gender ?? this.gender,
+      hometown: hometown ?? this.hometown,
       reminderLeadMinutes: reminderLeadMinutes ?? this.reminderLeadMinutes,
       dayReminderEnabled: dayReminderEnabled ?? this.dayReminderEnabled,
       hourReminderEnabled: hourReminderEnabled ?? this.hourReminderEnabled,
@@ -59,6 +83,12 @@ class UserPreference {
       'school': school,
       'major': major,
       'grade': grade,
+      'avatarPath': avatarPath,
+      'signature': signature,
+      'birthday': birthday,
+      'age': age,
+      'gender': gender,
+      'hometown': hometown,
       'reminderLeadMinutes': reminderLeadMinutes,
       'dayReminderEnabled': dayReminderEnabled,
       'hourReminderEnabled': hourReminderEnabled,
@@ -75,6 +105,12 @@ class UserPreference {
       school: json['school'] as String? ?? '',
       major: json['major'] as String? ?? '',
       grade: json['grade'] as String? ?? '',
+      avatarPath: json['avatarPath'] as String? ?? '',
+      signature: json['signature'] as String? ?? '',
+      birthday: json['birthday'] as String? ?? '',
+      age: json['age'] as String? ?? '',
+      gender: json['gender'] as String? ?? '',
+      hometown: json['hometown'] as String? ?? '',
       reminderLeadMinutes: (json['reminderLeadMinutes'] as num?)?.toInt() ?? 60,
       dayReminderEnabled: json['dayReminderEnabled'] as bool? ?? true,
       hourReminderEnabled: json['hourReminderEnabled'] as bool? ?? true,

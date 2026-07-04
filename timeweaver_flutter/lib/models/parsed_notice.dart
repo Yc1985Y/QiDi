@@ -7,6 +7,7 @@ class ParsedNotice {
     required this.eventType,
     required this.source,
     required this.createdAtIso,
+    this.ownerAccount = '',
     this.startTimeIso,
     this.deadlineIso,
     this.location,
@@ -30,6 +31,7 @@ class ParsedNotice {
   final String? rawPayload;
   final String status;
   final String createdAtIso;
+  final String ownerAccount;
 
   ParsedNotice copyWith({
     String? id,
@@ -45,6 +47,7 @@ class ParsedNotice {
     String? rawPayload,
     String? status,
     String? createdAtIso,
+    String? ownerAccount,
   }) {
     return ParsedNotice(
       id: id ?? this.id,
@@ -60,6 +63,7 @@ class ParsedNotice {
       rawPayload: rawPayload ?? this.rawPayload,
       status: status ?? this.status,
       createdAtIso: createdAtIso ?? this.createdAtIso,
+      ownerAccount: ownerAccount ?? this.ownerAccount,
     );
   }
 
@@ -78,6 +82,7 @@ class ParsedNotice {
       'rawPayload': rawPayload,
       'status': status,
       'createdAtIso': createdAtIso,
+      'ownerAccount': ownerAccount,
     };
   }
 
@@ -100,6 +105,7 @@ class ParsedNotice {
       status: json['status'] as String? ?? '待确认',
       createdAtIso:
           json['createdAtIso'] as String? ?? DateTime.now().toIso8601String(),
+      ownerAccount: json['ownerAccount'] as String? ?? '',
     );
   }
 }

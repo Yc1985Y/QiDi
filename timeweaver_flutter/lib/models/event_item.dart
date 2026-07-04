@@ -2,6 +2,7 @@ import 'parsed_notice.dart';
 import 'reminder_item.dart';
 import 'source_info.dart';
 import 'user_preference.dart';
+import '../utils/date_utils.dart';
 
 class EventItem {
   const EventItem({
@@ -11,6 +12,7 @@ class EventItem {
     required this.source,
     required this.createdAtIso,
     required this.updatedAtIso,
+    this.ownerAccount = '',
     this.startTimeIso,
     this.deadlineIso,
     this.location,
@@ -33,12 +35,13 @@ class EventItem {
   final List<ReminderItem> reminders;
   final String createdAtIso;
   final String updatedAtIso;
+  final String ownerAccount;
 
   DateTime? get startTime =>
-      startTimeIso == null ? null : DateTime.tryParse(startTimeIso!);
+      startTimeIso == null ? null : ZhishiDateUtils.parse(startTimeIso!);
 
   DateTime? get deadline =>
-      deadlineIso == null ? null : DateTime.tryParse(deadlineIso!);
+      deadlineIso == null ? null : ZhishiDateUtils.parse(deadlineIso!);
 
   bool get isConfirmed => status.contains('已加入') || status.contains('已确认');
 
@@ -56,6 +59,7 @@ class EventItem {
     List<ReminderItem>? reminders,
     String? createdAtIso,
     String? updatedAtIso,
+    String? ownerAccount,
   }) {
     return EventItem(
       id: id ?? this.id,
@@ -71,6 +75,7 @@ class EventItem {
       reminders: reminders ?? this.reminders,
       createdAtIso: createdAtIso ?? this.createdAtIso,
       updatedAtIso: updatedAtIso ?? this.updatedAtIso,
+      ownerAccount: ownerAccount ?? this.ownerAccount,
     );
   }
 
@@ -89,6 +94,7 @@ class EventItem {
       'reminders': reminders.map((item) => item.toJson()).toList(),
       'createdAtIso': createdAtIso,
       'updatedAtIso': updatedAtIso,
+      'ownerAccount': ownerAccount,
     };
   }
 
@@ -113,12 +119,14 @@ class EventItem {
           json['createdAtIso'] as String? ?? DateTime.now().toIso8601String(),
       updatedAtIso:
           json['updatedAtIso'] as String? ?? DateTime.now().toIso8601String(),
+      ownerAccount: json['ownerAccount'] as String? ?? '',
     );
   }
 
   factory EventItem.fromParsedNotice(
     ParsedNotice notice,
     UserPreference preference,
+    String ownerAccount,
   ) {
     final nowIso = DateTime.now().toIso8601String();
     final reminders = <ReminderItem>[
@@ -153,6 +161,7 @@ class EventItem {
       reminders: reminders,
       createdAtIso: notice.createdAtIso,
       updatedAtIso: nowIso,
+      ownerAccount: ownerAccount,
     );
   }
 }

@@ -1,4 +1,5 @@
 import '../models/parsed_notice.dart';
+import 'date_utils.dart';
 
 class Validators {
   static String? confirmBlocker(ParsedNotice notice) {
@@ -6,8 +7,7 @@ class Validators {
     if (notice.startTimeIso == null || notice.startTimeIso!.trim().isEmpty) {
       return '请补充开始时间';
     }
-    if (DateTime.tryParse(notice.startTimeIso!.replaceFirst(' ', 'T')) ==
-        null) {
+    if (ZhishiDateUtils.parse(notice.startTimeIso!) == null) {
       return '时间格式需要能被识别';
     }
     return null;

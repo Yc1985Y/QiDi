@@ -42,7 +42,9 @@ dependencies:
   timezone: ^0.11.1
   intl: ^0.20.3
   uuid: ^4.5.3
+  crypto: ^3.0.6
   path_provider: ^2.1.6
+  path: ^1.9.1
   speech_to_text: ^7.4.0
   flutter_tts: ^4.2.5
   url_launcher: ^6.3.2
@@ -51,6 +53,9 @@ dependencies:
   add_2_calendar: ^3.1.1
   pdf: ^3.13.0
   open_filex: ^4.7.0
+  sqflite: ^2.4.2
+  image: ^4.5.4
+  camera: ^0.12.0+1
 
 dev_dependencies:
   flutter_test:
@@ -76,6 +81,39 @@ flutter:
 
   assets:
     - assets/fonts/NotoSansSC-Regular.otf
+
+  fonts:
+    - family: NotoSansSC
+      fonts:
+        - asset: assets/fonts/NotoSansSC-Regular.otf
+    - family: Literata
+      fonts:
+        - asset: assets/fonts/literata_regular.ttf
+          weight: 400
+        - asset: assets/fonts/literata_medium.ttf
+          weight: 500
+        - asset: assets/fonts/literata_semibold.ttf
+          weight: 600
+    - family: Manrope
+      fonts:
+        - asset: assets/fonts/manrope_regular.ttf
+          weight: 400
+        - asset: assets/fonts/manrope_medium.ttf
+          weight: 500
+        - asset: assets/fonts/manrope_semibold.ttf
+          weight: 600
+        - asset: assets/fonts/manrope_bold.ttf
+          weight: 700
+    - family: PlusJakartaSans
+      fonts:
+        - asset: assets/fonts/plus_jakarta_sans_regular.ttf
+          weight: 400
+        - asset: assets/fonts/plus_jakarta_sans_medium.ttf
+          weight: 500
+        - asset: assets/fonts/plus_jakarta_sans_bold.ttf
+          weight: 700
+        - asset: assets/fonts/plus_jakarta_sans_extrabold.ttf
+          weight: 800
 
   # To add assets to your application, add an assets section, like this:
   # assets:
