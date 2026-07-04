@@ -16,7 +16,6 @@ class UserPreference {
     this.blockHighRisk = true,
     this.muteLowConfidence = false,
     this.autoMapLink = true,
-    this.performanceLiteMode = false,
   });
 
   final String nickname;
@@ -35,7 +34,6 @@ class UserPreference {
   final bool blockHighRisk;
   final bool muteLowConfidence;
   final bool autoMapLink;
-  final bool performanceLiteMode;
 
   UserPreference copyWith({
     String? nickname,
@@ -54,7 +52,6 @@ class UserPreference {
     bool? blockHighRisk,
     bool? muteLowConfidence,
     bool? autoMapLink,
-    bool? performanceLiteMode,
   }) {
     return UserPreference(
       nickname: nickname ?? this.nickname,
@@ -73,7 +70,6 @@ class UserPreference {
       blockHighRisk: blockHighRisk ?? this.blockHighRisk,
       muteLowConfidence: muteLowConfidence ?? this.muteLowConfidence,
       autoMapLink: autoMapLink ?? this.autoMapLink,
-      performanceLiteMode: performanceLiteMode ?? this.performanceLiteMode,
     );
   }
 
@@ -95,7 +91,6 @@ class UserPreference {
       'blockHighRisk': blockHighRisk,
       'muteLowConfidence': muteLowConfidence,
       'autoMapLink': autoMapLink,
-      'performanceLiteMode': performanceLiteMode,
     };
   }
 
@@ -117,7 +112,6 @@ class UserPreference {
       blockHighRisk: json['blockHighRisk'] as bool? ?? true,
       muteLowConfidence: json['muteLowConfidence'] as bool? ?? false,
       autoMapLink: json['autoMapLink'] as bool? ?? true,
-      performanceLiteMode: json['performanceLiteMode'] as bool? ?? false,
     );
   }
 }

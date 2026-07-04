@@ -129,24 +129,6 @@ class EventItem {
     String ownerAccount,
   ) {
     final nowIso = DateTime.now().toIso8601String();
-    final reminders = <ReminderItem>[
-      if (preference.dayReminderEnabled)
-        ReminderItem(
-          id: '${notice.id}-1440',
-          eventId: notice.id,
-          label: '提前1天',
-          minutesBefore: 24 * 60,
-        ),
-      if (preference.hourReminderEnabled)
-        ReminderItem(
-          id: '${notice.id}-${preference.reminderLeadMinutes}',
-          eventId: notice.id,
-          label: preference.reminderLeadMinutes == 60
-              ? '提前1小时'
-              : '提前${preference.reminderLeadMinutes}分钟',
-          minutesBefore: preference.reminderLeadMinutes,
-        ),
-    ];
 
     return EventItem(
       id: notice.id,
@@ -158,10 +140,37 @@ class EventItem {
       description: notice.description,
       source: notice.source,
       confidence: notice.confidence,
-      reminders: reminders,
+      reminders: buildReminderPolicy(notice.id, preference),
       createdAtIso: notice.createdAtIso,
       updatedAtIso: nowIso,
       ownerAccount: ownerAccount,
     );
+  }
+
+  EventItem withReminderPolicy(UserPreference preference) {
+    return copyWith(reminders: buildReminderPolicy(id, preference));
+  }
+
+  static List<ReminderItem> buildReminderPolicy(
+    String eventId,
+    UserPreference preference,
+  ) {
+    final leadMinutes = preference.reminderLeadMinutes.clamp(5, 180).toInt();
+    return [
+      if (preference.dayReminderEnabled)
+        ReminderItem(
+          id: '$eventId-1440',
+          eventId: eventId,
+          label: '提前1天',
+          minutesBefore: 24 * 60,
+        ),
+      if (preference.hourReminderEnabled)
+        ReminderItem(
+          id: '$eventId-$leadMinutes',
+          eventId: eventId,
+          label: leadMinutes == 60 ? '提前1小时' : '提前$leadMinutes分钟',
+          minutesBefore: leadMinutes,
+        ),
+    ];
   }
 }

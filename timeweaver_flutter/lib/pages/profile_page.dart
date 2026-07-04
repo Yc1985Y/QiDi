@@ -1042,10 +1042,6 @@ class _PreferenceOverviewCard extends StatelessWidget {
           _PreferenceStatusRow(
             title: '自动地图联动',
             value: preference.autoMapLink ? '已开启' : '未开启',
-          ),
-          _PreferenceStatusRow(
-            title: '轻量性能模式',
-            value: preference.performanceLiteMode ? '已开启' : '未开启',
             compact: true,
           ),
         ],
@@ -1457,7 +1453,7 @@ class _AchievementsPage extends StatelessWidget {
         const SizedBox(height: 14),
         _SectionBlock(
           title: '徽章墙',
-          summary: '用成就反馈强化长期习惯，保留答辩时的可视化亮点。',
+          summary: '用成就反馈强化长期习惯，沉淀可复盘的时间管理结果。',
           child: _NavGrid(
             items: [
               _NavItemSpec(
@@ -1510,8 +1506,8 @@ class _AchievementsPage extends StatelessWidget {
               SizedBox(height: 10),
               _DetailGuideRow(
                 icon: Icons.download_rounded,
-                title: '答辩导出',
-                summary: '导出时间线资产后，可补充展示型徽章。',
+                title: '时间线导出',
+                summary: '导出时间线资产后，可补充复盘型徽章。',
               ),
             ],
           ),
@@ -1564,6 +1560,7 @@ class _PreferencesPage extends StatelessWidget {
             preference.copyWith(hourReminderEnabled: value),
           ),
         ),
+        _ReminderLeadTile(controller: controller),
         _SwitchTile(
           title: '高风险动作拦截',
           subtitle: '考试、截止、地点不明等事项先经过你确认。',
@@ -1586,14 +1583,6 @@ class _PreferencesPage extends StatelessWidget {
           value: preference.autoMapLink,
           onChanged: (value) => controller.savePreference(
             preference.copyWith(autoMapLink: value),
-          ),
-        ),
-        _SwitchTile(
-          title: '轻量性能模式',
-          subtitle: '减少不必要的运行消耗。',
-          value: preference.performanceLiteMode,
-          onChanged: (value) => controller.savePreference(
-            preference.copyWith(performanceLiteMode: value),
           ),
         ),
       ],
@@ -1702,7 +1691,7 @@ class _SettingsPage extends StatelessWidget {
             _NavItemSpec(
               Icons.storage_rounded,
               '数据空间',
-              '时间资产与导出缓存',
+              '时间资产与导出记录',
               () => onNavigate(ProfileRoute.dataSpace),
             ),
           ],
@@ -1872,6 +1861,7 @@ class _ReminderCenterPage extends StatelessWidget {
             preference.copyWith(hourReminderEnabled: value),
           ),
         ),
+        _ReminderLeadTile(controller: controller),
         WeavingCard(
           child: SizedBox(
             width: double.infinity,
@@ -1934,6 +1924,36 @@ class _ExportRecordsPage extends StatelessWidget {
     return ListView(
       padding: const EdgeInsets.fromLTRB(16, 8, 16, 24),
       children: [
+        _SectionBlock(
+          title: '生成导出文件',
+          summary: '选择格式后直接从当前时间线生成文件，并写入导出记录。',
+          child: _NavGrid(
+            items: [
+              _NavItemSpec(
+                Icons.picture_as_pdf_rounded,
+                'PDF',
+                '生成可阅读文档',
+                controller.exportTimelinePdf,
+                color: AppColors.coral,
+              ),
+              _NavItemSpec(
+                Icons.image_rounded,
+                'PNG',
+                '生成图片快照',
+                controller.exportTimelinePng,
+                color: AppColors.primarySoft,
+              ),
+              _NavItemSpec(
+                Icons.photo_rounded,
+                'JPG',
+                '生成压缩图片',
+                controller.exportTimelineJpg,
+                color: AppColors.gold,
+              ),
+            ],
+          ),
+        ),
+        const SizedBox(height: 14),
         if (records.isEmpty)
           const EmptyState(
             title: '还没有导出记录',
@@ -2060,13 +2080,9 @@ class _RuntimeStatusPage extends StatelessWidget {
               color: readyCount >= 5 ? AppColors.primarySoft : AppColors.gold,
             ),
             _MetricBox(
-              value: controller.preference.performanceLiteMode
-                  ? 'Lite'
-                  : 'Full',
-              label: '动效模式',
-              color: controller.preference.performanceLiteMode
-                  ? AppColors.gold
-                  : AppColors.primarySoft,
+              value: '${controller.scheduledReminderCount}',
+              label: '待触达提醒',
+              color: AppColors.primarySoft,
             ),
           ],
         ),
@@ -2154,51 +2170,6 @@ class _RuntimeStatusPage extends StatelessWidget {
                   ),
                 )
                 .toList(),
-          ),
-        ),
-        const SizedBox(height: 14),
-        _SwitchTile(
-          title: '性能轻量模式',
-          subtitle: '开启后会降低解析校验页动效和加载动画负担。',
-          value: controller.preference.performanceLiteMode,
-          onChanged: (value) => controller.savePreference(
-            controller.preference.copyWith(performanceLiteMode: value),
-          ),
-        ),
-        const SizedBox(height: 14),
-        _SectionBlock(
-          title: '演示建议',
-          summary: '答辩现场如果模拟器卡顿，优先打开轻量模式；真机性能充足时可恢复完整动效。',
-          child: _NavGrid(
-            items: const [
-              _NavItemSpec(
-                Icons.speed_rounded,
-                '低性能设备',
-                '优先开启轻量模式',
-                null,
-                color: AppColors.gold,
-              ),
-              _NavItemSpec(
-                Icons.psychology_rounded,
-                '模型演示',
-                '保留真实 API 链路',
-                null,
-                color: AppColors.primarySoft,
-              ),
-              _NavItemSpec(
-                Icons.storage_rounded,
-                '数据演示',
-                '先准备 2-3 条时间资产',
-                null,
-              ),
-              _NavItemSpec(
-                Icons.notifications_active_rounded,
-                '提醒演示',
-                '确认提醒数量不为 0',
-                null,
-                color: AppColors.coral,
-              ),
-            ],
           ),
         ),
       ],
@@ -2599,7 +2570,7 @@ class _DataSpacePage extends StatelessWidget {
               const SizedBox(height: 8),
               Text(
                 controller.dataStoreReady
-                    ? '导入来源、解析结果、时间资产和导出缓存都在本地分层沉淀，保持真实数据边界清晰可查。'
+                    ? '导入来源、解析结果、时间资产和导出记录都在本地分层沉淀，保持真实数据边界清晰可查。'
                     : '当前本地库尚未就绪，事件、导出记录和偏好写入需要先恢复存储能力。',
                 style: const TextStyle(color: AppColors.muted, height: 1.45),
               ),
@@ -2626,7 +2597,7 @@ class _DataSpacePage extends StatelessWidget {
               ),
               _NavItemSpec(
                 Icons.download_rounded,
-                '导出缓存',
+                '导出记录',
                 '打开真实导出记录',
                 () => onNavigate(ProfileRoute.exportRecords),
               ),
@@ -2658,16 +2629,94 @@ class _PersonaPage extends StatelessWidget {
 
   final AppController controller;
 
-  String _buildPersona() {
+  _PersonaSummary _buildPersona() {
     final confirmed = controller.confirmedEvents.length;
     final pending = controller.pendingNotices.length;
     final reminders = controller.scheduledReminderCount;
-    final today = controller.todayEvents.length;
+    final sourceTypes = controller.confirmedEvents
+        .map((event) => event.source.type)
+        .toSet()
+        .length;
+    final locationComplete = confirmed == 0
+        ? 0
+        : controller.confirmedEvents
+              .where((event) => event.location?.trim().isNotEmpty ?? false)
+              .length;
+    final locationRate = confirmed == 0
+        ? 0
+        : ((locationComplete / confirmed) * 100).round();
 
-    if (confirmed >= 12 && reminders >= 8) return '高密度规划型';
-    if (pending >= 4) return '谨慎校验型';
-    if (today <= 1 && reminders <= 2) return '低噪留白型';
-    return '稳态推进型';
+    if (confirmed < 3 && pending < 2 && reminders < 2) {
+      return const _PersonaSummary(
+        title: '画像生成中',
+        subtitle: '资料不足',
+        tags: ['确认记录不足', '来源样本不足', '继续真实使用'],
+        guides: [
+          _PersonaGuide(
+            Icons.add_task_rounded,
+            '先确认更多事项',
+            '至少沉淀 3 条已确认时间线后，画像会变得更稳定。',
+          ),
+          _PersonaGuide(
+            Icons.download_rounded,
+            '保留导入来源',
+            '文本、相册、拍照和系统分享都会参与来源分布判断。',
+          ),
+          _PersonaGuide(
+            Icons.location_on_outlined,
+            '补齐地点线索',
+            '地点完整率会影响地图联动和时间资产可信度。',
+          ),
+        ],
+      );
+    }
+
+    final tags = <String>[];
+    if (sourceTypes >= 3) tags.add('多来源导入');
+    if (pending >= 3) tags.add('谨慎校验');
+    if (reminders >= confirmed && confirmed > 0) tags.add('提醒托管');
+    if (locationRate >= 70) tags.add('地点完整');
+    if (confirmed >= 8) tags.add('时间线沉淀');
+    if (tags.isEmpty) tags.add('稳态推进');
+
+    var title = '稳态推进型';
+    var subtitle = '基于确认记录、提醒和来源分布生成';
+    if (pending >= confirmed && pending >= 3) {
+      title = '谨慎校验型';
+      subtitle = '待确认事项较多，仍以人工复核为主';
+    } else if (sourceTypes >= 3 && confirmed >= 4) {
+      title = '多模态导入型';
+      subtitle = '多种真实导入来源正在形成稳定习惯';
+    } else if (reminders >= confirmed && confirmed >= 4) {
+      title = '提醒托管型';
+      subtitle = '已确认事项大多接入本地提醒';
+    } else if (confirmed >= 8) {
+      title = '时间线沉淀型';
+      subtitle = '已形成可复盘的校园时间资产';
+    }
+
+    return _PersonaSummary(
+      title: title,
+      subtitle: subtitle,
+      tags: tags,
+      guides: [
+        _PersonaGuide(
+          Icons.check_circle_outline_rounded,
+          '已确认记录',
+          '$confirmed 条已确认，$pending 条待确认。',
+        ),
+        _PersonaGuide(
+          Icons.notifications_active_rounded,
+          '提醒覆盖',
+          '$reminders 条后续提醒，提前量 ${controller.preference.reminderLeadMinutes} 分钟。',
+        ),
+        _PersonaGuide(
+          Icons.location_on_outlined,
+          '地点完整率',
+          '$locationRate% 的已确认事项带有地点线索。',
+        ),
+      ],
+    );
   }
 
   @override
@@ -2697,11 +2746,14 @@ class _PersonaPage extends StatelessWidget {
             children: [
               Text('当前画像', style: Theme.of(context).textTheme.titleMedium),
               const SizedBox(height: 8),
-              Text(persona, style: Theme.of(context).textTheme.headlineMedium),
+              Text(
+                persona.title,
+                style: Theme.of(context).textTheme.headlineMedium,
+              ),
               const SizedBox(height: 8),
-              const Text(
-                '根据确认日程、待确认碎片、今日安排和提醒数量动态估算，保持可解释而非猜测。',
-                style: TextStyle(color: AppColors.muted, height: 1.45),
+              Text(
+                persona.subtitle,
+                style: const TextStyle(color: AppColors.muted, height: 1.45),
               ),
             ],
           ),
@@ -2709,68 +2761,90 @@ class _PersonaPage extends StatelessWidget {
         const SizedBox(height: 14),
         _SectionBlock(
           title: '画像标签',
-          summary: '把用户与智能体的关系做成可解释标签，增强二级页展示价值。',
+          summary: '标签只来自真实确认记录、待确认数量、提醒数量、来源分布和地点完整率。',
           child: _NavGrid(
-            items: const [
-              _NavItemSpec(
-                Icons.download_rounded,
-                '多模态导入型',
-                '适合截图 / 海报 / 群通知',
-                null,
-                color: AppColors.gold,
-              ),
-              _NavItemSpec(
-                Icons.shield_rounded,
-                '谨慎授权型',
-                '高风险动作保留确认卡',
-                null,
-                color: AppColors.coral,
-              ),
-              _NavItemSpec(
-                Icons.timeline_rounded,
-                '时间线沉淀型',
-                '关注长期秩序资产',
-                null,
-                color: AppColors.primarySoft,
-              ),
-              _NavItemSpec(
-                Icons.notifications_active_rounded,
-                '提醒托管型',
-                '关键事项交给系统守护',
-                null,
-              ),
-            ],
+            items: persona.tags
+                .map(
+                  (tag) => _NavItemSpec(
+                    _personaTagIcon(tag),
+                    tag,
+                    _personaTagSummary(tag),
+                    null,
+                    color: _personaTagColor(tag),
+                  ),
+                )
+                .toList(),
           ),
         ),
         const SizedBox(height: 14),
         _SectionBlock(
           title: '个性化建议',
           summary: '根据当前使用状态给出可解释建议，不凭空猜测用户习惯。',
-          child: const Column(
+          child: Column(
             children: [
-              _DetailGuideRow(
-                icon: Icons.query_stats_rounded,
-                title: '低置信度先校验',
-                summary: '可让时间线更可信、更适合答辩展示。',
-              ),
-              SizedBox(height: 10),
-              _DetailGuideRow(
-                icon: Icons.map_rounded,
-                title: '地点字段补齐',
-                summary: '建议遇到会议室、教学楼时尽量保留地点线索。',
-              ),
-              SizedBox(height: 10),
-              _DetailGuideRow(
-                icon: Icons.history_rounded,
-                title: '定期回看历史',
-                summary: '从历史记录中复盘哪些来源最容易产生有效日程。',
-              ),
+              for (var i = 0; i < persona.guides.length; i++) ...[
+                _DetailGuideRow(
+                  icon: persona.guides[i].icon,
+                  title: persona.guides[i].title,
+                  summary: persona.guides[i].summary,
+                ),
+                if (i < persona.guides.length - 1) const SizedBox(height: 10),
+              ],
             ],
           ),
         ),
       ],
     );
   }
+}
+
+class _PersonaSummary {
+  const _PersonaSummary({
+    required this.title,
+    required this.subtitle,
+    required this.tags,
+    required this.guides,
+  });
+
+  final String title;
+  final String subtitle;
+  final List<String> tags;
+  final List<_PersonaGuide> guides;
+}
+
+class _PersonaGuide {
+  const _PersonaGuide(this.icon, this.title, this.summary);
+
+  final IconData icon;
+  final String title;
+  final String summary;
+}
+
+IconData _personaTagIcon(String tag) {
+  if (tag.contains('多来源')) return Icons.download_rounded;
+  if (tag.contains('校验')) return Icons.shield_rounded;
+  if (tag.contains('提醒')) return Icons.notifications_active_rounded;
+  if (tag.contains('地点')) return Icons.location_on_outlined;
+  if (tag.contains('沉淀')) return Icons.timeline_rounded;
+  return Icons.auto_awesome_rounded;
+}
+
+String _personaTagSummary(String tag) {
+  if (tag.contains('多来源')) return '文本、图片或分享来源形成分布';
+  if (tag.contains('校验')) return '待确认池仍需要人工复核';
+  if (tag.contains('提醒')) return '关键时间点已有本地提醒';
+  if (tag.contains('地点')) return '地点字段较完整，可联动地图';
+  if (tag.contains('沉淀')) return '已有可复盘的时间线资产';
+  return '使用状态正在稳定积累';
+}
+
+Color? _personaTagColor(String tag) {
+  if (tag.contains('校验')) return AppColors.coral;
+  if (tag.contains('多来源') || tag.contains('地点')) return AppColors.gold;
+  if (tag.contains('提醒') || tag.contains('沉淀')) {
+    return AppColors.primarySoft;
+  }
+  return null;
 }
 
 class _AgentCheckupPage extends StatelessWidget {
@@ -3018,6 +3092,100 @@ class _SwitchTile extends StatelessWidget {
           ],
         ),
       ),
+    );
+  }
+}
+
+class _ReminderLeadTile extends StatelessWidget {
+  const _ReminderLeadTile({required this.controller});
+
+  final AppController controller;
+
+  @override
+  Widget build(BuildContext context) {
+    final leadMinutes = controller.preference.reminderLeadMinutes
+        .clamp(5, 180)
+        .toInt();
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 10),
+      child: WeavingCard(
+        onTap: () => _showLeadDialog(context, leadMinutes),
+        child: Row(
+          children: [
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text('提醒提前量', style: Theme.of(context).textTheme.titleMedium),
+                  const SizedBox(height: 6),
+                  const Text(
+                    '手动设置临近提醒提前多少分钟触达。',
+                    style: TextStyle(color: AppColors.muted, height: 1.45),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(width: 12),
+            InfoChip(
+              label: '$leadMinutes 分钟',
+              backgroundColor: AppColors.primarySoft,
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Future<void> _showLeadDialog(BuildContext context, int initialMinutes) async {
+    var selected = initialMinutes.toDouble();
+    await showDialog<void>(
+      context: context,
+      builder: (dialogContext) {
+        return StatefulBuilder(
+          builder: (context, setDialogState) {
+            final selectedMinutes = selected.round();
+            return AlertDialog(
+              title: const Text('提醒提前量'),
+              content: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text('当前：$selectedMinutes 分钟'),
+                  Slider(
+                    min: 5,
+                    max: 180,
+                    divisions: 35,
+                    value: selected,
+                    label: '$selectedMinutes 分钟',
+                    onChanged: (value) {
+                      setDialogState(() {
+                        selected = (value / 5).round() * 5;
+                      });
+                    },
+                  ),
+                ],
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.of(dialogContext).pop(),
+                  child: const Text('取消'),
+                ),
+                FilledButton(
+                  onPressed: () {
+                    controller.savePreference(
+                      controller.preference.copyWith(
+                        reminderLeadMinutes: selectedMinutes,
+                      ),
+                    );
+                    Navigator.of(dialogContext).pop();
+                  },
+                  child: const Text('保存'),
+                ),
+              ],
+            );
+          },
+        );
+      },
     );
   }
 }
@@ -3270,13 +3438,13 @@ List<_NavItemSpec> _dashboardFeatureItems(
     _NavItemSpec(
       Icons.storage_rounded,
       '数据空间',
-      '本地存储与缓存边界',
+      '本地存储与数据边界',
       () => onNavigate(ProfileRoute.dataSpace),
     ),
     _NavItemSpec(
       Icons.speed_rounded,
       '运行状态',
-      '模型、OCR、存储与动效负载',
+      '模型、OCR、存储与权限状态',
       () => onNavigate(ProfileRoute.runtimeStatus),
     ),
   ];
@@ -3290,19 +3458,19 @@ List<_NavItemSpec> _agentCenterSystemItems(
     _NavItemSpec(
       Icons.download_rounded,
       '导出记录',
-      '为答辩或复盘导出你的时间资产',
+      '导出你的时间资产',
       () => onNavigate(ProfileRoute.exportRecords),
     ),
     _NavItemSpec(
       Icons.settings_rounded,
       '设置',
-      '管理账号、测试信息与退出登录',
+      '管理账号、偏好与退出登录',
       () => onNavigate(ProfileRoute.settings),
     ),
     _NavItemSpec(
       Icons.speed_rounded,
       '运行状态',
-      '${controller.runtimeModelName} / ${controller.preference.performanceLiteMode ? '轻量' : '完整'}动效',
+      '${controller.runtimeModelName} / 本地能力',
       () => onNavigate(ProfileRoute.runtimeStatus),
     ),
     _NavItemSpec(
@@ -3530,7 +3698,7 @@ List<_CheckupItem> _buildCheckupItems(AppController controller) {
       title: '待确认池',
       summary: controller.pendingNotices.isEmpty
           ? '当前没有待校验事项，人在回路链路保持干净。'
-          : '还有 ${controller.pendingNotices.length} 条事项等待复核，建议先处理再进入演示。',
+          : '还有 ${controller.pendingNotices.length} 条事项等待复核，建议先处理再继续使用。',
       level: controller.pendingNotices.isEmpty
           ? _CheckupLevel.ready
           : _CheckupLevel.action,
@@ -3572,9 +3740,9 @@ List<_CheckupItem> _buildCheckupItems(AppController controller) {
       title: '安全边界',
       summary: controller.preference.blockHighRisk
           ? controller.preference.muteLowConfidence
-                ? '高风险拦截与低置信静默均已开启，适合正式演示。'
-                : '高风险拦截已开启，低置信静默可按演示需要打开。'
-          : '高风险拦截未开启，建议答辩前恢复人在回路防线。',
+                ? '高风险拦截与低置信静默均已开启，适合正式使用。'
+                : '高风险拦截已开启，可按个人需要打开低置信静默。'
+          : '高风险拦截未开启，建议恢复人在回路防线。',
       level: controller.preference.blockHighRisk
           ? controller.preference.muteLowConfidence
                 ? _CheckupLevel.ready
@@ -3627,7 +3795,7 @@ int _calculateCheckupScore(List<_CheckupItem> items) {
 }
 
 String _buildCheckupConclusion(int score, int actionCount, int watchCount) {
-  if (score >= 92) return '可直接演示';
+  if (score >= 92) return '状态良好';
   if (actionCount > 0) return '先处理 $actionCount 项';
   if (watchCount > 0) return '建议微调 $watchCount 项';
   return '状态稳定';

@@ -1,4 +1,4 @@
-﻿import 'dart:async';
+import 'dart:async';
 import 'dart:io';
 
 import 'package:flutter/material.dart';
@@ -263,7 +263,9 @@ class AppController extends ChangeNotifier {
     await accountRepository.ensureBuiltInTestAccount();
     await reminderService.initialize();
     await ttsService.initialize();
-    currentUser = await accountSessionService.loadCurrentUser(accountRepository);
+    currentUser = await accountSessionService.loadCurrentUser(
+      accountRepository,
+    );
     allEvents = await repository.loadEvents();
     allPendingNotices = await repository.loadPendingNotices();
     preference = await repository.loadPreference();
@@ -572,14 +574,11 @@ class AppController extends ChangeNotifier {
     notifyListeners();
   }
 
-  Future<void> exportTimelinePdf() =>
-      exportTimeline(TimelineExportFormat.pdf);
+  Future<void> exportTimelinePdf() => exportTimeline(TimelineExportFormat.pdf);
 
-  Future<void> exportTimelinePng() =>
-      exportTimeline(TimelineExportFormat.png);
+  Future<void> exportTimelinePng() => exportTimeline(TimelineExportFormat.png);
 
-  Future<void> exportTimelineJpg() =>
-      exportTimeline(TimelineExportFormat.jpg);
+  Future<void> exportTimelineJpg() => exportTimeline(TimelineExportFormat.jpg);
 
   Future<void> exportTimeline(TimelineExportFormat format) async {
     isBusy = true;
@@ -587,7 +586,10 @@ class AppController extends ChangeNotifier {
     statusMessage = '正在导出时间线 ${format.label}';
     notifyListeners();
     try {
-      final result = await timelineExportService.export(confirmedEvents, format);
+      final result = await timelineExportService.export(
+        confirmedEvents,
+        format,
+      );
       final opened = await timelineExportService.open(result.path);
       final record = ExportRecord(
         id: 'export-${DateTime.now().millisecondsSinceEpoch}',
@@ -627,8 +629,15 @@ class AppController extends ChangeNotifier {
   }
 
   Future<void> savePreference(UserPreference next) async {
+    final reminderPolicyChanged =
+        preference.reminderLeadMinutes != next.reminderLeadMinutes ||
+        preference.dayReminderEnabled != next.dayReminderEnabled ||
+        preference.hourReminderEnabled != next.hourReminderEnabled;
     preference = next;
     await repository.savePreference(preference);
+    if (reminderPolicyChanged) {
+      await _rebuildAgendaReminderPolicies();
+    }
     statusMessage = '偏好已保存';
     notifyListeners();
   }
@@ -656,7 +665,11 @@ class AppController extends ChangeNotifier {
     loginSubmitting = true;
     loginMessage = '';
     notifyListeners();
-    final result = await accountRepository.register(account, password, nickname);
+    final result = await accountRepository.register(
+      account,
+      password,
+      nickname,
+    );
     loginSubmitting = false;
     loginMessage = result.message;
     notifyListeners();
@@ -723,17 +736,22 @@ class AppController extends ChangeNotifier {
   Future<void> rescheduleReminders() async {
     isBusy = true;
     notifyListeners();
-    final updated = <EventItem>[];
-    for (final event in events) {
-      await reminderService.cancelForEvent(event);
-      final scheduled = await reminderService.scheduleForEvent(event);
-      updated.add(event.copyWith(reminders: scheduled));
-    }
-    events = updated;
-    await _saveScopedEvents();
+    await _rebuildAgendaReminderPolicies();
     isBusy = false;
     statusMessage = '本地提醒已重新排程';
     notifyListeners();
+  }
+
+  Future<void> _rebuildAgendaReminderPolicies() async {
+    final updated = <EventItem>[];
+    for (final event in events) {
+      await reminderService.cancelForEvent(event);
+      final withPolicy = event.withReminderPolicy(preference);
+      final scheduled = await reminderService.scheduleForEvent(withPolicy);
+      updated.add(withPolicy.copyWith(reminders: scheduled));
+    }
+    events = updated;
+    await _saveScopedEvents();
   }
 
   Future<void> clearPending() async {
@@ -917,7 +935,9 @@ class AppController extends ChangeNotifier {
 
   void _loadVisibleDataForCurrentAccount() {
     final account = currentAccountLabel;
-    events = allEvents.where((item) => _matchesAccount(item.ownerAccount, account)).toList();
+    events = allEvents
+        .where((item) => _matchesAccount(item.ownerAccount, account))
+        .toList();
     pendingNotices = allPendingNotices
         .where((item) => _matchesAccount(item.ownerAccount, account))
         .toList();
@@ -939,7 +959,9 @@ class AppController extends ChangeNotifier {
         .map((item) => item.copyWith(ownerAccount: account))
         .toList();
     allEvents =
-        allEvents.where((item) => !_matchesAccount(item.ownerAccount, account)).toList()
+        allEvents
+            .where((item) => !_matchesAccount(item.ownerAccount, account))
+            .toList()
           ..addAll(scopedEvents);
     await repository.saveEvents(allEvents);
   }
@@ -949,10 +971,11 @@ class AppController extends ChangeNotifier {
     final scopedNotices = pendingNotices
         .map((item) => item.copyWith(ownerAccount: account))
         .toList();
-    allPendingNotices = allPendingNotices
-        .where((item) => !_matchesAccount(item.ownerAccount, account))
-        .toList()
-      ..addAll(scopedNotices);
+    allPendingNotices =
+        allPendingNotices
+            .where((item) => !_matchesAccount(item.ownerAccount, account))
+            .toList()
+          ..addAll(scopedNotices);
     await repository.savePendingNotices(allPendingNotices);
   }
 
@@ -961,10 +984,11 @@ class AppController extends ChangeNotifier {
     final scopedMessages = inboxMessages
         .map((item) => item.copyWith(ownerAccount: account))
         .toList();
-    allInboxMessages = allInboxMessages
-        .where((item) => !_matchesAccount(item.ownerAccount, account))
-        .toList()
-      ..addAll(scopedMessages);
+    allInboxMessages =
+        allInboxMessages
+            .where((item) => !_matchesAccount(item.ownerAccount, account))
+            .toList()
+          ..addAll(scopedMessages);
     await repository.saveInboxMessages(allInboxMessages);
   }
 
@@ -973,10 +997,11 @@ class AppController extends ChangeNotifier {
     final scopedRecords = exportRecords
         .map((item) => item.copyWith(ownerAccount: account))
         .toList();
-    allExportRecords = allExportRecords
-        .where((item) => !_matchesAccount(item.ownerAccount, account))
-        .toList()
-      ..addAll(scopedRecords);
+    allExportRecords =
+        allExportRecords
+            .where((item) => !_matchesAccount(item.ownerAccount, account))
+            .toList()
+          ..addAll(scopedRecords);
     await repository.saveExportRecords(allExportRecords);
   }
 
