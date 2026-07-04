@@ -631,8 +631,7 @@ class AppController extends ChangeNotifier {
   Future<void> savePreference(UserPreference next) async {
     final reminderPolicyChanged =
         preference.reminderLeadMinutes != next.reminderLeadMinutes ||
-        preference.dayReminderEnabled != next.dayReminderEnabled ||
-        preference.hourReminderEnabled != next.hourReminderEnabled;
+        preference.reminderLeadDays != next.reminderLeadDays;
     preference = next;
     await repository.savePreference(preference);
     if (reminderPolicyChanged) {

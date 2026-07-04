@@ -78,7 +78,7 @@ void main() {
   test('timeline detail helpers preserve reminder summary and export time', () {
     final event = EventItem(
       id: 'a',
-      title: '答辩',
+      title: '汇报',
       eventType: '校园安排',
       startTimeIso: '2026-07-10 18:30',
       source: const SourceInfo(type: SourceType.manualText),

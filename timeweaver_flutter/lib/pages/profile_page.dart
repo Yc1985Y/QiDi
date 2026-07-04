@@ -18,8 +18,6 @@ enum ProfileRoute {
   history,
   statistics,
   achievements,
-  preferences,
-  account,
   settings,
   personalInfo,
   persona,
@@ -116,10 +114,6 @@ class _ProfilePageState extends State<ProfilePage> {
         return _StatisticsPage(controller: controller);
       case ProfileRoute.achievements:
         return _AchievementsPage(controller: controller);
-      case ProfileRoute.preferences:
-        return _PreferencesPage(controller: controller);
-      case ProfileRoute.account:
-        return _AccountPage(controller: controller, onNavigate: _push);
       case ProfileRoute.settings:
         return _SettingsPage(controller: controller, onNavigate: _push);
       case ProfileRoute.personalInfo:
@@ -160,10 +154,6 @@ class _ProfilePageState extends State<ProfilePage> {
         return '统计';
       case ProfileRoute.achievements:
         return '我的成就';
-      case ProfileRoute.preferences:
-        return '偏好设置';
-      case ProfileRoute.account:
-        return '账号';
       case ProfileRoute.settings:
         return '设置';
       case ProfileRoute.personalInfo:
@@ -242,7 +232,7 @@ class _DashboardPage extends StatelessWidget {
           onOpenSettings: () => onNavigate(ProfileRoute.settings),
           onOpenHistory: () => onNavigate(ProfileRoute.history),
           onOpenStatistics: () => onNavigate(ProfileRoute.statistics),
-          onOpenAccount: () => onNavigate(ProfileRoute.account),
+          onOpenPersona: () => onNavigate(ProfileRoute.persona),
         ),
         const SizedBox(height: 14),
         _ScheduleBoardCard(
@@ -250,9 +240,6 @@ class _DashboardPage extends StatelessWidget {
           pendingAgendaCount: controller.pendingNotices.length,
           scheduledReminderCount: controller.scheduledReminderCount,
           onOpenTimelineAssets: () => onNavigate(ProfileRoute.timelineAssets),
-          onTodayAgendaClick: () => onNavigate(ProfileRoute.timelineAssets),
-          onPendingClick: () => onNavigate(ProfileRoute.notificationInbox),
-          onReminderClick: () => onNavigate(ProfileRoute.reminderCenter),
         ),
         const SizedBox(height: 14),
         _AgentCenterEntryCard(
@@ -260,9 +247,10 @@ class _DashboardPage extends StatelessWidget {
           pendingAgendaCount: controller.pendingNotices.length,
           scheduledReminderCount: controller.scheduledReminderCount,
           activePolicyCount: _buildActivePolicyCount(controller),
-          onOpenTimelineAssets: () => onNavigate(ProfileRoute.timelineAssets),
           onOpenAgentCenter: () => onNavigate(ProfileRoute.agentCenter),
         ),
+        const SizedBox(height: 14),
+        _DashboardLogoutButton(controller: controller),
       ],
     );
   }
@@ -365,18 +353,61 @@ class _ProfileIdentityCard extends StatelessWidget {
   }
 }
 
+class _DashboardLogoutButton extends StatelessWidget {
+  const _DashboardLogoutButton({required this.controller});
+
+  final AppController controller;
+
+  @override
+  Widget build(BuildContext context) {
+    return SizedBox(
+      width: double.infinity,
+      child: FilledButton.icon(
+        onPressed: () => _confirmLogout(context),
+        icon: const Icon(Icons.logout_rounded),
+        label: const Text('退出登录'),
+      ),
+    );
+  }
+
+  Future<void> _confirmLogout(BuildContext context) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) {
+        return AlertDialog(
+          title: const Text('退出登录？'),
+          content: const Text('退出后需要重新登录才能继续使用当前账号。'),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(dialogContext).pop(false),
+              child: const Text('取消'),
+            ),
+            FilledButton(
+              onPressed: () => Navigator.of(dialogContext).pop(true),
+              child: const Text('退出登录'),
+            ),
+          ],
+        );
+      },
+    );
+    if (confirmed == true) {
+      await controller.logoutAccount();
+    }
+  }
+}
+
 class _ProfileShortcutGrid extends StatelessWidget {
   const _ProfileShortcutGrid({
     required this.onOpenSettings,
     required this.onOpenHistory,
     required this.onOpenStatistics,
-    required this.onOpenAccount,
+    required this.onOpenPersona,
   });
 
   final VoidCallback onOpenSettings;
   final VoidCallback onOpenHistory;
   final VoidCallback onOpenStatistics;
-  final VoidCallback onOpenAccount;
+  final VoidCallback onOpenPersona;
 
   @override
   Widget build(BuildContext context) {
@@ -405,10 +436,10 @@ class _ProfileShortcutGrid extends StatelessWidget {
           ),
           const SizedBox(width: 10),
           _ShortcutEntry(
-            icon: Icons.manage_accounts_rounded,
-            label: '账号',
+            icon: Icons.psychology_rounded,
+            label: '用户画像',
             background: Colors.white.withValues(alpha: 0.82),
-            onTap: onOpenAccount,
+            onTap: onOpenPersona,
           ),
         ],
       ),
@@ -473,18 +504,12 @@ class _ScheduleBoardCard extends StatelessWidget {
     required this.pendingAgendaCount,
     required this.scheduledReminderCount,
     required this.onOpenTimelineAssets,
-    required this.onTodayAgendaClick,
-    required this.onPendingClick,
-    required this.onReminderClick,
   });
 
   final int todayAgendaCount;
   final int pendingAgendaCount;
   final int scheduledReminderCount;
   final VoidCallback onOpenTimelineAssets;
-  final VoidCallback onTodayAgendaClick;
-  final VoidCallback onPendingClick;
-  final VoidCallback onReminderClick;
 
   @override
   Widget build(BuildContext context) {
@@ -511,10 +536,9 @@ class _ScheduleBoardCard extends StatelessWidget {
                   ],
                 ),
               ),
-              IconButton.filledTonal(
-                onPressed: onOpenTimelineAssets,
-                icon: const Icon(Icons.calendar_month_rounded),
-                tooltip: '打开时间线',
+              const Icon(
+                Icons.calendar_month_rounded,
+                color: AppColors.primary,
               ),
             ],
           ),
@@ -527,7 +551,6 @@ class _ScheduleBoardCard extends StatelessWidget {
                   value: '$todayAgendaCount',
                   icon: Icons.calendar_month_rounded,
                   background: AppColors.gold,
-                  onTap: onTodayAgendaClick,
                 ),
               ),
               const SizedBox(width: 10),
@@ -537,7 +560,6 @@ class _ScheduleBoardCard extends StatelessWidget {
                   value: '$pendingAgendaCount',
                   icon: Icons.shield_rounded,
                   background: AppColors.coral,
-                  onTap: onPendingClick,
                 ),
               ),
               const SizedBox(width: 10),
@@ -547,7 +569,6 @@ class _ScheduleBoardCard extends StatelessWidget {
                   value: '$scheduledReminderCount',
                   icon: Icons.notifications_active_rounded,
                   background: AppColors.primarySoft,
-                  onTap: onReminderClick,
                 ),
               ),
             ],
@@ -573,51 +594,53 @@ class _DashboardMetricPill extends StatelessWidget {
     required this.value,
     required this.icon,
     required this.background,
-    required this.onTap,
   });
 
   final String title;
   final String value;
   final IconData icon;
   final Color background;
-  final VoidCallback onTap;
 
   @override
   Widget build(BuildContext context) {
-    return InkWell(
-      borderRadius: BorderRadius.circular(18),
-      onTap: onTap,
-      child: Container(
-        height: 108,
-        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 12),
-        decoration: BoxDecoration(
-          color: background,
-          borderRadius: BorderRadius.circular(18),
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Container(
-              width: 34,
-              height: 34,
-              decoration: BoxDecoration(
-                color: Colors.white.withValues(alpha: 0.45),
-                shape: BoxShape.circle,
-              ),
-              child: Icon(icon, size: 18, color: AppColors.primary),
+    return Container(
+      height: 132,
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 12),
+      decoration: BoxDecoration(
+        color: background,
+        borderRadius: BorderRadius.circular(18),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Container(
+            width: 36,
+            height: 36,
+            decoration: BoxDecoration(
+              color: Colors.white.withValues(alpha: 0.45),
+              shape: BoxShape.circle,
             ),
-            const Spacer(),
-            Text(
-              value,
-              style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                fontWeight: FontWeight.w900,
-                color: AppColors.primary,
-              ),
+            child: Icon(icon, size: 18, color: AppColors.primary),
+          ),
+          const Spacer(),
+          Text(
+            value,
+            style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+              fontWeight: FontWeight.w900,
+              color: AppColors.primary,
             ),
-            const SizedBox(height: 2),
-            Text(title, style: const TextStyle(color: AppColors.muted)),
-          ],
-        ),
+          ),
+          const SizedBox(height: 4),
+          Text(
+            title,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: Theme.of(context).textTheme.labelMedium?.copyWith(
+              color: AppColors.primary,
+              fontWeight: FontWeight.w800,
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -629,7 +652,6 @@ class _AgentCenterEntryCard extends StatelessWidget {
     required this.pendingAgendaCount,
     required this.scheduledReminderCount,
     required this.activePolicyCount,
-    required this.onOpenTimelineAssets,
     required this.onOpenAgentCenter,
   });
 
@@ -637,7 +659,6 @@ class _AgentCenterEntryCard extends StatelessWidget {
   final int pendingAgendaCount;
   final int scheduledReminderCount;
   final int activePolicyCount;
-  final VoidCallback onOpenTimelineAssets;
   final VoidCallback onOpenAgentCenter;
 
   @override
@@ -694,7 +715,6 @@ class _AgentCenterEntryCard extends StatelessWidget {
                   title: '资产',
                   value: '$confirmedAgendaCount',
                   background: AppColors.primarySoft,
-                  onTap: onOpenTimelineAssets,
                 ),
               ),
               const SizedBox(width: 8),
@@ -703,7 +723,6 @@ class _AgentCenterEntryCard extends StatelessWidget {
                   title: '待确认',
                   value: '$pendingAgendaCount',
                   background: AppColors.coral,
-                  onTap: onOpenAgentCenter,
                 ),
               ),
               const SizedBox(width: 8),
@@ -712,7 +731,6 @@ class _AgentCenterEntryCard extends StatelessWidget {
                   title: '提醒',
                   value: '$scheduledReminderCount',
                   background: AppColors.gold,
-                  onTap: onOpenAgentCenter,
                 ),
               ),
               const SizedBox(width: 8),
@@ -721,7 +739,6 @@ class _AgentCenterEntryCard extends StatelessWidget {
                   title: '策略',
                   value: '$activePolicyCount/3',
                   background: Colors.white.withValues(alpha: 0.82),
-                  onTap: onOpenAgentCenter,
                 ),
               ),
             ],
@@ -737,39 +754,33 @@ class _CenterStatusPill extends StatelessWidget {
     required this.title,
     required this.value,
     required this.background,
-    required this.onTap,
   });
 
   final String title;
   final String value;
   final Color background;
-  final VoidCallback onTap;
 
   @override
   Widget build(BuildContext context) {
-    return InkWell(
-      borderRadius: BorderRadius.circular(16),
-      onTap: onTap,
-      child: Container(
-        height: 58,
-        decoration: BoxDecoration(
-          color: background,
-          borderRadius: BorderRadius.circular(16),
-        ),
-        alignment: Alignment.center,
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Text(
-              value,
-              style: Theme.of(
-                context,
-              ).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w800),
-            ),
-            const SizedBox(height: 2),
-            Text(title, style: Theme.of(context).textTheme.labelSmall),
-          ],
-        ),
+    return Container(
+      height: 58,
+      decoration: BoxDecoration(
+        color: background,
+        borderRadius: BorderRadius.circular(16),
+      ),
+      alignment: Alignment.center,
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Text(
+            value,
+            style: Theme.of(
+              context,
+            ).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w800),
+          ),
+          const SizedBox(height: 2),
+          Text(title, style: Theme.of(context).textTheme.labelSmall),
+        ],
       ),
     );
   }
@@ -784,7 +795,7 @@ class _AgentCenterPage extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final featureItems = _dashboardFeatureItems(controller, onNavigate);
-    final systemItems = _agentCenterSystemItems(controller, onNavigate);
+    final systemItems = _agentCenterSystemItems(onNavigate);
     final checkupItems = _buildCheckupItems(controller);
     final issueCount = checkupItems
         .where((item) => item.level != _CheckupLevel.ready)
@@ -825,7 +836,6 @@ class _AgentCenterPage extends StatelessWidget {
                   title: '回看',
                   summary: '${controller.confirmedEvents.length} 条资产',
                   background: AppColors.primarySoft,
-                  onTap: () => onNavigate(ProfileRoute.timelineAssets),
                 ),
               ),
               const SizedBox(width: 10),
@@ -927,11 +937,6 @@ class _AgentCenterPage extends StatelessWidget {
           child: _NavGrid(items: featureItems),
         ),
         const SizedBox(height: 14),
-        _PreferenceOverviewCard(
-          controller: controller,
-          onOpenPreferences: () => onNavigate(ProfileRoute.preferences),
-        ),
-        const SizedBox(height: 14),
         _AchievementPreviewCard(
           controller: controller,
           onOpenAll: () => onNavigate(ProfileRoute.achievements),
@@ -953,14 +958,14 @@ class _FlowMiniTile extends StatelessWidget {
     required this.title,
     required this.summary,
     required this.background,
-    required this.onTap,
+    this.onTap,
   });
 
   final IconData icon;
   final String title;
   final String summary;
   final Color background;
-  final VoidCallback onTap;
+  final VoidCallback? onTap;
 
   @override
   Widget build(BuildContext context) {
@@ -1002,81 +1007,6 @@ class _FlowMiniTile extends StatelessWidget {
             ),
           ],
         ),
-      ),
-    );
-  }
-}
-
-class _PreferenceOverviewCard extends StatelessWidget {
-  const _PreferenceOverviewCard({
-    required this.controller,
-    required this.onOpenPreferences,
-  });
-
-  final AppController controller;
-  final VoidCallback onOpenPreferences;
-
-  @override
-  Widget build(BuildContext context) {
-    final preference = controller.preference;
-    return WeavingCard(
-      onTap: onOpenPreferences,
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text('边界控制', style: Theme.of(context).textTheme.titleMedium),
-          const SizedBox(height: 6),
-          const Text(
-            '关键开关仍可在更多功能页直接调整，减少跳转成本。',
-            style: TextStyle(color: AppColors.muted, height: 1.45),
-          ),
-          const SizedBox(height: 12),
-          _PreferenceStatusRow(
-            title: '高风险拦截',
-            value: preference.blockHighRisk ? '已开启' : '未开启',
-          ),
-          _PreferenceStatusRow(
-            title: '低置信静默',
-            value: preference.muteLowConfidence ? '已开启' : '未开启',
-          ),
-          _PreferenceStatusRow(
-            title: '自动地图联动',
-            value: preference.autoMapLink ? '已开启' : '未开启',
-            compact: true,
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _PreferenceStatusRow extends StatelessWidget {
-  const _PreferenceStatusRow({
-    required this.title,
-    required this.value,
-    this.compact = false,
-  });
-
-  final String title;
-  final String value;
-  final bool compact;
-
-  @override
-  Widget build(BuildContext context) {
-    return Padding(
-      padding: EdgeInsets.only(bottom: compact ? 0 : 8),
-      child: Row(
-        children: [
-          Expanded(
-            child: Text(
-              title,
-              style: Theme.of(
-                context,
-              ).textTheme.labelLarge?.copyWith(fontWeight: FontWeight.w700),
-            ),
-          ),
-          Text(value, style: const TextStyle(color: AppColors.muted)),
-        ],
       ),
     );
   }
@@ -1533,118 +1463,6 @@ class _AchievementsPage extends StatelessWidget {
   }
 }
 
-class _PreferencesPage extends StatelessWidget {
-  const _PreferencesPage({required this.controller});
-
-  final AppController controller;
-
-  @override
-  Widget build(BuildContext context) {
-    final preference = controller.preference;
-    return ListView(
-      padding: const EdgeInsets.fromLTRB(16, 8, 16, 24),
-      children: [
-        _SwitchTile(
-          title: '提前一天预热',
-          subtitle: '为已确认事项保留一天前提醒。',
-          value: preference.dayReminderEnabled,
-          onChanged: (value) => controller.savePreference(
-            preference.copyWith(dayReminderEnabled: value),
-          ),
-        ),
-        _SwitchTile(
-          title: '临近前提醒',
-          subtitle: '使用分钟级提醒覆盖最近时间点。',
-          value: preference.hourReminderEnabled,
-          onChanged: (value) => controller.savePreference(
-            preference.copyWith(hourReminderEnabled: value),
-          ),
-        ),
-        _ReminderLeadTile(controller: controller),
-        _SwitchTile(
-          title: '高风险动作拦截',
-          subtitle: '考试、截止、地点不明等事项先经过你确认。',
-          value: preference.blockHighRisk,
-          onChanged: (value) => controller.savePreference(
-            preference.copyWith(blockHighRisk: value),
-          ),
-        ),
-        _SwitchTile(
-          title: '低置信静默处理',
-          subtitle: '降低误写入时间线的概率。',
-          value: preference.muteLowConfidence,
-          onChanged: (value) => controller.savePreference(
-            preference.copyWith(muteLowConfidence: value),
-          ),
-        ),
-        _SwitchTile(
-          title: '自动地图联动',
-          subtitle: '地点完整时允许直接拉起地图。',
-          value: preference.autoMapLink,
-          onChanged: (value) => controller.savePreference(
-            preference.copyWith(autoMapLink: value),
-          ),
-        ),
-      ],
-    );
-  }
-}
-
-class _AccountPage extends StatelessWidget {
-  const _AccountPage({required this.controller, required this.onNavigate});
-
-  final AppController controller;
-  final ValueChanged<ProfileRoute> onNavigate;
-
-  @override
-  Widget build(BuildContext context) {
-    return ListView(
-      padding: const EdgeInsets.fromLTRB(16, 8, 16, 24),
-      children: [
-        _NavGrid(
-          items: [
-            _NavItemSpec(
-              Icons.badge_outlined,
-              '个人信息',
-              '编辑昵称、学校、专业与头像',
-              () => onNavigate(ProfileRoute.personalInfo),
-            ),
-            _NavItemSpec(
-              Icons.tune_rounded,
-              '设置',
-              '偏好、提醒与隐私策略',
-              () => onNavigate(ProfileRoute.settings),
-            ),
-            _NavItemSpec(
-              Icons.person_search_outlined,
-              '用户画像',
-              '基于真实使用状态推断',
-              () => onNavigate(ProfileRoute.persona),
-            ),
-            _NavItemSpec(
-              Icons.workspace_premium_outlined,
-              '我的成就',
-              '查看沉淀结果与展示亮点',
-              () => onNavigate(ProfileRoute.achievements),
-            ),
-          ],
-        ),
-        const SizedBox(height: 14),
-        WeavingCard(
-          child: SizedBox(
-            width: double.infinity,
-            child: FilledButton.icon(
-              onPressed: controller.logoutAccount,
-              icon: const Icon(Icons.logout_rounded),
-              label: const Text('退出登录'),
-            ),
-          ),
-        ),
-      ],
-    );
-  }
-}
-
 class _SettingsPage extends StatelessWidget {
   const _SettingsPage({required this.controller, required this.onNavigate});
 
@@ -1656,45 +1474,64 @@ class _SettingsPage extends StatelessWidget {
     return ListView(
       padding: const EdgeInsets.fromLTRB(16, 8, 16, 24),
       children: [
-        _NavGrid(
-          items: [
-            _NavItemSpec(
-              Icons.tune_rounded,
-              '偏好设置',
-              '提醒、风控、地图与性能',
-              () => onNavigate(ProfileRoute.preferences),
-            ),
-            _NavItemSpec(
-              Icons.alarm_rounded,
-              '提醒中心',
-              '重排本地提醒与查看覆盖率',
-              () => onNavigate(ProfileRoute.reminderCenter),
-            ),
-            _NavItemSpec(
-              Icons.notifications_active_rounded,
-              '通知中心',
-              '${controller.inboxMessages.length} 条系统记录',
-              () => onNavigate(ProfileRoute.notificationInbox),
-            ),
-            _NavItemSpec(
-              Icons.speed_rounded,
-              '运行状态',
-              '模型、OCR、权限与存储',
-              () => onNavigate(ProfileRoute.runtimeStatus),
-            ),
-            _NavItemSpec(
-              Icons.shield_rounded,
-              '隐私与安全',
-              '高风险拦截与低置信策略',
-              () => onNavigate(ProfileRoute.privacySecurity),
-            ),
-            _NavItemSpec(
-              Icons.storage_rounded,
-              '数据空间',
-              '时间资产与导出记录',
-              () => onNavigate(ProfileRoute.dataSpace),
-            ),
-          ],
+        _SectionBlock(
+          title: '账号与设置',
+          summary: '当前账号只展示，不再作为独立页面入口。',
+          child: _NavGrid(
+            items: [
+              _NavItemSpec(
+                Icons.manage_accounts_rounded,
+                '当前账号',
+                controller.currentAccountLabel.trim().isEmpty
+                    ? '尚未登录有效账号'
+                    : controller.currentAccountLabel,
+                null,
+                color: AppColors.gold,
+              ),
+              _NavItemSpec(
+                Icons.badge_outlined,
+                '个人资料',
+                '编辑昵称、学校、专业与头像',
+                () => onNavigate(ProfileRoute.personalInfo),
+              ),
+              _NavItemSpec(
+                Icons.alarm_rounded,
+                '提醒设置',
+                '调整日级和分钟提前量',
+                () => onNavigate(ProfileRoute.reminderCenter),
+                color: AppColors.primarySoft,
+              ),
+              _NavItemSpec(
+                Icons.shield_rounded,
+                '隐私与安全',
+                '高风险拦截与低置信策略',
+                () => onNavigate(ProfileRoute.privacySecurity),
+                color: AppColors.coral,
+              ),
+            ],
+          ),
+        ),
+        const SizedBox(height: 14),
+        _SectionBlock(
+          title: '运行与策略',
+          summary: '保留运行状态和确认策略入口，数据空间由功能地图进入。',
+          child: _NavGrid(
+            items: [
+              _NavItemSpec(
+                Icons.speed_rounded,
+                '运行状态',
+                '模型、OCR、权限与存储',
+                () => onNavigate(ProfileRoute.runtimeStatus),
+              ),
+              _NavItemSpec(
+                Icons.health_and_safety_outlined,
+                '确认策略',
+                '待办、提醒、冲突和安全边界',
+                () => onNavigate(ProfileRoute.agentCheckup),
+                color: AppColors.primarySoft,
+              ),
+            ],
+          ),
         ),
       ],
     );
@@ -1845,22 +1682,22 @@ class _ReminderCenterPage extends StatelessWidget {
     return ListView(
       padding: const EdgeInsets.fromLTRB(16, 8, 16, 24),
       children: [
-        _SwitchTile(
-          title: '提前一天提醒',
-          subtitle: '为时间线事项生成一天前提醒。',
-          value: preference.dayReminderEnabled,
-          onChanged: (value) => controller.savePreference(
-            preference.copyWith(dayReminderEnabled: value),
-          ),
+        _MetricRow(
+          children: [
+            _MetricBox(
+              value: '${controller.scheduledReminderCount}',
+              label: '已挂载',
+              color: AppColors.primarySoft,
+            ),
+            _MetricBox(
+              value: '${preference.reminderLeadMinutes} 分钟',
+              label: '提前量',
+              color: AppColors.gold,
+            ),
+          ],
         ),
-        _SwitchTile(
-          title: '临近提醒',
-          subtitle: '按分钟级提醒覆盖最近时段。',
-          value: preference.hourReminderEnabled,
-          onChanged: (value) => controller.savePreference(
-            preference.copyWith(hourReminderEnabled: value),
-          ),
-        ),
+        const SizedBox(height: 14),
+        _ReminderLeadDaysTile(controller: controller),
         _ReminderLeadTile(controller: controller),
         WeavingCard(
           child: SizedBox(
@@ -2251,8 +2088,8 @@ class _NotificationInboxPageState extends State<_NotificationInboxPage> {
               _NavItemSpec(
                 Icons.tune_rounded,
                 '通知策略',
-                '调整提醒与静默规则',
-                () => widget.onNavigate(ProfileRoute.preferences),
+                '调整日级和分钟提前量',
+                () => widget.onNavigate(ProfileRoute.reminderCenter),
               ),
             ],
           ),
@@ -2929,9 +2766,9 @@ class _AgentCheckupPage extends StatelessWidget {
               ),
               _NavItemSpec(
                 Icons.tune_rounded,
-                '调整偏好',
-                '提醒与安全边界',
-                () => onNavigate(ProfileRoute.preferences),
+                '调整设置',
+                '账号、提醒与安全边界',
+                () => onNavigate(ProfileRoute.settings),
               ),
               _NavItemSpec(
                 Icons.timeline_rounded,
@@ -3096,6 +2933,106 @@ class _SwitchTile extends StatelessWidget {
   }
 }
 
+class _ReminderLeadDaysTile extends StatelessWidget {
+  const _ReminderLeadDaysTile({required this.controller});
+
+  final AppController controller;
+
+  @override
+  Widget build(BuildContext context) {
+    final leadDays = controller.preference.reminderLeadDays
+        .clamp(1, 14)
+        .toInt();
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 10),
+      child: WeavingCard(
+        onTap: () => _showLeadDaysDialog(context, leadDays),
+        child: Row(
+          children: [
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    '日级提前天数',
+                    style: Theme.of(context).textTheme.titleMedium,
+                  ),
+                  const SizedBox(height: 6),
+                  Text(
+                    '重要事项开始前 $leadDays 天提醒。',
+                    style: const TextStyle(
+                      color: AppColors.muted,
+                      height: 1.45,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(width: 12),
+            InfoChip(label: '$leadDays 天', backgroundColor: AppColors.gold),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Future<void> _showLeadDaysDialog(
+    BuildContext context,
+    int initialDays,
+  ) async {
+    var selected = initialDays.toDouble();
+    await showDialog<void>(
+      context: context,
+      builder: (dialogContext) {
+        return StatefulBuilder(
+          builder: (context, setDialogState) {
+            final selectedDays = selected.round();
+            return AlertDialog(
+              title: const Text('日级提前天数'),
+              content: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text('当前：$selectedDays 天'),
+                  Slider(
+                    min: 1,
+                    max: 14,
+                    divisions: 13,
+                    value: selected,
+                    label: '$selectedDays 天',
+                    onChanged: (value) {
+                      setDialogState(() {
+                        selected = value.roundToDouble();
+                      });
+                    },
+                  ),
+                ],
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.of(dialogContext).pop(),
+                  child: const Text('取消'),
+                ),
+                FilledButton(
+                  onPressed: () {
+                    controller.savePreference(
+                      controller.preference.copyWith(
+                        reminderLeadDays: selectedDays,
+                      ),
+                    );
+                    Navigator.of(dialogContext).pop();
+                  },
+                  child: const Text('保存'),
+                ),
+              ],
+            );
+          },
+        );
+      },
+    );
+  }
+}
+
 class _ReminderLeadTile extends StatelessWidget {
   const _ReminderLeadTile({required this.controller});
 
@@ -3118,9 +3055,12 @@ class _ReminderLeadTile extends StatelessWidget {
                 children: [
                   Text('提醒提前量', style: Theme.of(context).textTheme.titleMedium),
                   const SizedBox(height: 6),
-                  const Text(
-                    '手动设置临近提醒提前多少分钟触达。',
-                    style: TextStyle(color: AppColors.muted, height: 1.45),
+                  Text(
+                    '重要事项开始前 $leadMinutes 分钟提醒。',
+                    style: const TextStyle(
+                      color: AppColors.muted,
+                      height: 1.45,
+                    ),
                   ),
                 ],
               ),
@@ -3407,8 +3347,8 @@ List<_NavItemSpec> _dashboardFeatureItems(
     ),
     _NavItemSpec(
       Icons.timeline_rounded,
-      '日程表',
-      '查看沉淀资产与今天安排',
+      '时间线资产',
+      '回看已确认记录与提醒沉淀',
       () => onNavigate(ProfileRoute.timelineAssets),
     ),
     _NavItemSpec(
@@ -3419,15 +3359,9 @@ List<_NavItemSpec> _dashboardFeatureItems(
     ),
     _NavItemSpec(
       Icons.workspace_premium_outlined,
-      '我的成就',
-      '勋章、里程碑与使用激励',
+      '使用概览',
+      '沉淀规模、里程碑与使用反馈',
       () => onNavigate(ProfileRoute.achievements),
-    ),
-    _NavItemSpec(
-      Icons.person_search_outlined,
-      '用户画像',
-      '校园时间管理侧写',
-      () => onNavigate(ProfileRoute.persona),
     ),
     _NavItemSpec(
       Icons.shield_rounded,
@@ -3451,33 +3385,14 @@ List<_NavItemSpec> _dashboardFeatureItems(
 }
 
 List<_NavItemSpec> _agentCenterSystemItems(
-  AppController controller,
   ValueChanged<ProfileRoute> onNavigate,
 ) {
   return [
     _NavItemSpec(
       Icons.download_rounded,
       '导出记录',
-      '导出你的时间资产',
+      '导出和备份时间线记录',
       () => onNavigate(ProfileRoute.exportRecords),
-    ),
-    _NavItemSpec(
-      Icons.settings_rounded,
-      '设置',
-      '管理账号、偏好与退出登录',
-      () => onNavigate(ProfileRoute.settings),
-    ),
-    _NavItemSpec(
-      Icons.speed_rounded,
-      '运行状态',
-      '${controller.runtimeModelName} / 本地能力',
-      () => onNavigate(ProfileRoute.runtimeStatus),
-    ),
-    _NavItemSpec(
-      Icons.logout_rounded,
-      '退出登录',
-      '返回登录页并保留本地时间线数据',
-      controller.logoutAccount,
     ),
   ];
 }
@@ -3726,12 +3641,12 @@ List<_CheckupItem> _buildCheckupItems(AppController controller) {
           : _CheckupLevel.watch,
       route: controller.preference.autoMapLink
           ? ProfileRoute.history
-          : ProfileRoute.preferences,
+          : ProfileRoute.privacySecurity,
     ),
     _CheckupItem(
       title: '提醒覆盖',
       summary: reminderCoverageLow
-          ? '已确认事项多于提醒数，建议检查默认提醒策略。'
+          ? '已确认事项多于提醒数，建议检查提醒策略。'
           : '提醒托管状态正常，关键时间点已有系统守护。',
       level: reminderCoverageLow ? _CheckupLevel.watch : _CheckupLevel.ready,
       route: ProfileRoute.reminderCenter,

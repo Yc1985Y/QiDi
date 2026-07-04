@@ -10,9 +10,8 @@ class UserPreference {
     this.age = '',
     this.gender = '',
     this.hometown = '',
+    this.reminderLeadDays = 1,
     this.reminderLeadMinutes = 60,
-    this.dayReminderEnabled = true,
-    this.hourReminderEnabled = true,
     this.blockHighRisk = true,
     this.muteLowConfidence = false,
     this.autoMapLink = true,
@@ -28,9 +27,8 @@ class UserPreference {
   final String age;
   final String gender;
   final String hometown;
+  final int reminderLeadDays;
   final int reminderLeadMinutes;
-  final bool dayReminderEnabled;
-  final bool hourReminderEnabled;
   final bool blockHighRisk;
   final bool muteLowConfidence;
   final bool autoMapLink;
@@ -46,9 +44,8 @@ class UserPreference {
     String? age,
     String? gender,
     String? hometown,
+    int? reminderLeadDays,
     int? reminderLeadMinutes,
-    bool? dayReminderEnabled,
-    bool? hourReminderEnabled,
     bool? blockHighRisk,
     bool? muteLowConfidence,
     bool? autoMapLink,
@@ -64,9 +61,8 @@ class UserPreference {
       age: age ?? this.age,
       gender: gender ?? this.gender,
       hometown: hometown ?? this.hometown,
+      reminderLeadDays: reminderLeadDays ?? this.reminderLeadDays,
       reminderLeadMinutes: reminderLeadMinutes ?? this.reminderLeadMinutes,
-      dayReminderEnabled: dayReminderEnabled ?? this.dayReminderEnabled,
-      hourReminderEnabled: hourReminderEnabled ?? this.hourReminderEnabled,
       blockHighRisk: blockHighRisk ?? this.blockHighRisk,
       muteLowConfidence: muteLowConfidence ?? this.muteLowConfidence,
       autoMapLink: autoMapLink ?? this.autoMapLink,
@@ -85,9 +81,8 @@ class UserPreference {
       'age': age,
       'gender': gender,
       'hometown': hometown,
+      'reminderLeadDays': reminderLeadDays,
       'reminderLeadMinutes': reminderLeadMinutes,
-      'dayReminderEnabled': dayReminderEnabled,
-      'hourReminderEnabled': hourReminderEnabled,
       'blockHighRisk': blockHighRisk,
       'muteLowConfidence': muteLowConfidence,
       'autoMapLink': autoMapLink,
@@ -106,9 +101,8 @@ class UserPreference {
       age: json['age'] as String? ?? '',
       gender: json['gender'] as String? ?? '',
       hometown: json['hometown'] as String? ?? '',
+      reminderLeadDays: (json['reminderLeadDays'] as num?)?.toInt() ?? 1,
       reminderLeadMinutes: (json['reminderLeadMinutes'] as num?)?.toInt() ?? 60,
-      dayReminderEnabled: json['dayReminderEnabled'] as bool? ?? true,
-      hourReminderEnabled: json['hourReminderEnabled'] as bool? ?? true,
       blockHighRisk: json['blockHighRisk'] as bool? ?? true,
       muteLowConfidence: json['muteLowConfidence'] as bool? ?? false,
       autoMapLink: json['autoMapLink'] as bool? ?? true,

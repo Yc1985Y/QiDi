@@ -155,22 +155,22 @@ class EventItem {
     String eventId,
     UserPreference preference,
   ) {
+    final leadDays = preference.reminderLeadDays.clamp(1, 14).toInt();
     final leadMinutes = preference.reminderLeadMinutes.clamp(5, 180).toInt();
+    final dayMinutes = leadDays * 24 * 60;
     return [
-      if (preference.dayReminderEnabled)
-        ReminderItem(
-          id: '$eventId-1440',
-          eventId: eventId,
-          label: '提前1天',
-          minutesBefore: 24 * 60,
-        ),
-      if (preference.hourReminderEnabled)
-        ReminderItem(
-          id: '$eventId-$leadMinutes',
-          eventId: eventId,
-          label: leadMinutes == 60 ? '提前1小时' : '提前$leadMinutes分钟',
-          minutesBefore: leadMinutes,
-        ),
+      ReminderItem(
+        id: '$eventId-$dayMinutes',
+        eventId: eventId,
+        label: leadDays == 1 ? '提前1天' : '提前$leadDays天',
+        minutesBefore: dayMinutes,
+      ),
+      ReminderItem(
+        id: '$eventId-$leadMinutes',
+        eventId: eventId,
+        label: leadMinutes == 60 ? '提前1小时' : '提前$leadMinutes分钟',
+        minutesBefore: leadMinutes,
+      ),
     ];
   }
 }
