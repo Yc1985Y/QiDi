@@ -205,6 +205,43 @@ void main() {
     expect(restored.last.ownerAccount, 'account-b');
     expect(restored.first.achievementId, 'first_weave');
   });
+
+  test('preferences are stored independently for each account', () async {
+    SharedPreferences.setMockInitialValues({});
+    final storage = StorageService();
+    const accountAPreference = UserPreference(
+      reminderLeadMinutes: 15,
+      blockHighRisk: false,
+    );
+    const accountBPreference = UserPreference(
+      reminderLeadMinutes: 120,
+      autoMapLink: false,
+    );
+
+    await storage.savePreferenceForAccount('account-a', accountAPreference);
+    await storage.savePreferenceForAccount('account-b', accountBPreference);
+
+    final restoredA = await storage.loadPreferenceForAccount('account-a');
+    final restoredB = await storage.loadPreferenceForAccount('account-b');
+    expect(restoredA?.reminderLeadMinutes, 15);
+    expect(restoredA?.blockHighRisk, isFalse);
+    expect(restoredB?.reminderLeadMinutes, 120);
+    expect(restoredB?.autoMapLink, isFalse);
+    expect(await storage.loadPreferenceForAccount('account-c'), isNull);
+  });
+
+  test('clearing local data removes every scoped preference', () async {
+    SharedPreferences.setMockInitialValues({});
+    final storage = StorageService();
+    await storage.savePreferenceForAccount(
+      'account-a',
+      const UserPreference(reminderLeadMinutes: 30),
+    );
+
+    await storage.clearAll();
+
+    expect(await storage.loadPreferenceForAccount('account-a'), isNull);
+  });
 }
 
 EventItem _event({

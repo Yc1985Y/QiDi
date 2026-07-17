@@ -392,13 +392,22 @@ class AppController extends ChangeNotifier {
     );
     allEvents = await repository.loadEvents();
     allPendingNotices = await repository.loadPendingNotices();
-    preference = await repository.loadPreference();
+    final legacyPreference = await repository.loadPreference();
     allInboxMessages = await repository.loadInboxMessages();
     allExportRecords = await repository.loadExportRecords();
     allAchievementUnlocks = await repository.loadAchievementUnlocks();
     if (currentUser != null) {
       await _claimUnownedDataForAccount(currentUser!.account);
-      preference = _applyCurrentUserToPreference(preference, currentUser);
+      final scopedPreference = await repository.loadPreferenceForAccount(
+        currentUser!.account,
+      );
+      preference = _applyCurrentUserToPreference(
+        scopedPreference ?? legacyPreference,
+        currentUser,
+      );
+      if (scopedPreference == null) await _saveCurrentPreference();
+    } else {
+      preference = legacyPreference;
     }
     _loadVisibleDataForCurrentAccount();
     await _syncAchievementUnlocks(notifyInbox: false);
@@ -986,7 +995,7 @@ class AppController extends ChangeNotifier {
         preference.reminderLeadMinutes != next.reminderLeadMinutes ||
         preference.reminderLeadDays != next.reminderLeadDays;
     preference = next;
-    await repository.savePreference(preference);
+    await _saveCurrentPreference();
     if (reminderPolicyChanged) {
       await _rebuildAgendaReminderPolicies();
     }
@@ -1033,6 +1042,7 @@ class AppController extends ChangeNotifier {
   Future<void> logoutAccount() async {
     await accountSessionService.clear();
     currentUser = null;
+    preference = const UserPreference();
     currentTab = 0;
     _loadVisibleDataForCurrentAccount();
     loginMessage = '已退出登录';
@@ -1079,7 +1089,7 @@ class AppController extends ChangeNotifier {
     currentUser = updated;
     await accountSessionService.saveCurrentUser(updated);
     preference = _applyCurrentUserToPreference(preference, updated);
-    await repository.savePreference(preference);
+    await _saveCurrentPreference();
     await _syncAchievementUnlocks();
     errorMessage = null;
     statusMessage = '个人资料已更新';
@@ -1371,6 +1381,14 @@ class AppController extends ChangeNotifier {
     await repository.saveAchievementUnlocks(allAchievementUnlocks);
   }
 
+  Future<void> _saveCurrentPreference() async {
+    await repository.savePreference(preference);
+    final account = currentAccountLabel;
+    if (account.isNotEmpty) {
+      await repository.savePreferenceForAccount(account, preference);
+    }
+  }
+
   Future<void> _syncAchievementUnlocks({bool notifyInbox = true}) async {
     final account = currentAccountLabel;
     if (account.isEmpty) return;
@@ -1414,7 +1432,14 @@ class AppController extends ChangeNotifier {
     currentUser = user;
     await accountSessionService.saveCurrentUser(user);
     await _claimUnownedDataForAccount(user.account);
-    preference = _applyCurrentUserToPreference(preference, user);
+    final scopedPreference = await repository.loadPreferenceForAccount(
+      user.account,
+    );
+    preference = _applyCurrentUserToPreference(
+      scopedPreference ?? const UserPreference(),
+      user,
+    );
+    await _saveCurrentPreference();
     _loadVisibleDataForCurrentAccount();
     await _syncAchievementUnlocks(notifyInbox: false);
     statusMessage = _buildInitialStatus();

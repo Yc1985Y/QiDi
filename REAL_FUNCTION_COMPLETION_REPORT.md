@@ -4,7 +4,7 @@
 
 | 功能 | 真实实现 | 主要实现文件 | Windows / Android 验证 | 仍需真机验证 |
 |---|---|---|---|---|
-| 本地账号注册、登录、会话恢复 | 是 | `login_page.dart`、`account_repository.dart`、`account_session_service.dart` | 模拟器真实账号和重启恢复通过 | iOS 输入体验 |
+| 本地账号注册、登录、会话恢复 | 是 | `login_page.dart`、`account_repository.dart`、`account_session_service.dart` | 模拟器真实账号、重启恢复和账号偏好隔离迁移通过 | iOS 输入体验 |
 | 个人资料与头像 | 是 | `profile_page.dart`、`account_repository.dart` | 页面、字段和本地保存回归通过 | Android/iOS 实体相机和相册 |
 | 文本、剪贴板输入 | 是 | `home_page.dart` | 真实文本提交通过 | iOS 输入法 |
 | 实时拍照、相册输入 | 是 | `live_camera_capture_page.dart`、`home_page.dart` | 模拟器真实预览非空 | 实体摄像头和相册权限 |
@@ -21,17 +21,18 @@
 | PDF / PNG / JPG 导出 | 是 | `timeline_export_service.dart` | 真实文件生成代码、构建和入口通过 | iOS 文件打开/分享 |
 | 通知中心、历史、统计、成就 | 是 | `profile_page.dart`、`user_insight_service.dart`、`achievement_unlock_record.dart` | 成就进度、首次日期、账号隔离持久化与重启恢复通过；新解锁写入通知中心 | 大数据量和 iPad 宽屏 |
 | 智能体中心、体检、画像 | 是 | `profile_page.dart`、`user_insight_service.dart` | 画像结合当前账号资料与历史事项实时计算，专项规则测试通过 | 大数据量与不同账号数据隔离人工验收 |
-| 偏好、隐私、运行状态、数据空间 | 是 | `profile_page.dart`、`app.dart` | 真实偏好与运行状态回归通过 | iOS 权限状态 |
+| 偏好、隐私、运行状态、数据空间 | 是 | `profile_page.dart`、`app.dart`、`storage_service.dart` | 提醒、风控和地图偏好按账号独立持久化；旧全局偏好无损迁移通过 | iOS 权限状态 |
 | iOS no-codesign 云编译 | 是 | `ios/*`、`codemagic.yaml`、GitHub Actions | GitHub Actions 全链路通过 | 正式签名、TestFlight、iPhone/iPad |
 
 ## 验证结果
 
 - `flutter analyze`：通过，`No issues found`。
-- `flutter test`：通过，29 项测试全部通过；画像与成就专项测试覆盖空账号、资料不足、画像组合、真实提醒排程、永久解锁和账号隔离边界。
+- `flutter test`：通过，31 项测试全部通过；画像、成就和账号存储测试覆盖永久解锁、账号隔离、偏好隔离与清理边界。
 - `flutter build apk --debug`：通过，并已覆盖安装到 `emulator-5554`。
 - 真实 vivo 解析、真实 vivo ASR、相机预览、clarification 补齐、时间线写入、重启持久化和删除均已在模拟器执行。
 - 用户画像与成就页已在 `emulator-5554` 使用现有账号真实数据验收：画像资料不足边界、1/8 成就解锁、真实首次达成日期和提醒排程进度显示正常，未发现布局溢出或应用崩溃。
 - 现有账号的 `first_weave` 成就已迁移为持久化解锁记录；强制结束并重启应用后，账号归属和 `2026-07-16` 首次达成日期保持不变。
+- 旧全局偏好已迁移为 `qa20260717` 专属偏好，迁移前后内容一致；账号会话、时间线和成就记录没有丢失。
 - 测试过程中创建的 `Student club activity` 已真实删除，测试账号未残留该记录。
 
 ## 未完成边界

@@ -18,6 +18,9 @@ class EventRepository {
 
   Future<UserPreference> loadPreference() => _storageService.loadPreference();
 
+  Future<UserPreference?> loadPreferenceForAccount(String account) =>
+      _storageService.loadPreferenceForAccount(account);
+
   Future<List<InboxMessage>> loadInboxMessages() =>
       _storageService.loadInboxMessages();
 
@@ -35,6 +38,11 @@ class EventRepository {
 
   Future<void> savePreference(UserPreference preference) =>
       _storageService.savePreference(preference);
+
+  Future<void> savePreferenceForAccount(
+    String account,
+    UserPreference preference,
+  ) => _storageService.savePreferenceForAccount(account, preference);
 
   Future<void> saveInboxMessages(List<InboxMessage> messages) =>
       _storageService.saveInboxMessages(messages);

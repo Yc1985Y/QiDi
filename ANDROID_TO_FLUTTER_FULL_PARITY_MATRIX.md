@@ -6,7 +6,7 @@
 
 | 模块 | Android 基线 | Flutter 实现 | 当前结论 | 已验证证据 | 仍需外部设备验证 |
 |---|---|---|---|---|---|
-| 登录 / 注册 / 会话 | `ui/LoginScreen.kt`、`account/*` | `login_page.dart`、`account_repository.dart`、`account_session_service.dart` | 源码与真实本地流程已对齐，已移除内置测试账号和公开测试密码 | 模拟器真实账号登录、会话恢复 | iOS 键盘和相册/相机头像流程 |
+| 登录 / 注册 / 会话 | `ui/LoginScreen.kt`、`account/*` | `login_page.dart`、`account_repository.dart`、`account_session_service.dart` | 源码与真实本地流程已对齐；事项、消息、导出、成就和用户偏好均按账号隔离 | 模拟器真实账号登录、会话恢复和旧偏好迁移 | iOS 键盘和相册/相机头像流程 |
 | 首页问候与总览 | `ui/home/HomeTopSection.kt` | `home_page.dart` | 组件层级、颜色、字体、尺寸、间距和底栏图标已按 Compose 常量对齐 | Android/Flutter 同分辨率截图回归，无溢出 | 不同实体设备字体栅格差异 |
 | 输入中枢 | `ui/home/HomeInputHubSection.kt` | `home_page.dart` | 拍照、粘贴、语音、解析按钮及状态分支已对齐 | 模拟器交互和真实解析 | iOS 输入法、权限弹窗 |
 | 实时相机 | `ui/camera/LiveCameraCaptureScreen.kt` | `live_camera_capture_page.dart` | 实时预览、闪光灯、镜头切换、快门、相册入口和错误状态已对齐 | 模拟器真实 Camera 预览非空 | Android/iPhone/iPad 实体摄像头、双镜头切换 |
@@ -25,7 +25,7 @@
 | 历史 / 统计 / 成就 | Profile summary/history models | `profile_page.dart`、`user_insight_service.dart`、`achievement_unlock_record.dart` | 保留 Android 统计层级；成就由真实数据计算，首次解锁后按账号永久保存，并回流通知中心 | 规则、账号隔离、重启恢复和空账号边界通过 | iPad 宽屏视觉验收 |
 | 智能体中心 / 体检 | Profile checkup/tile models | `profile_page.dart` | 功能地图、系统入口、真实状态、评分和行动项已对齐 | 全路由回归 | iPad 宽屏视觉验收 |
 | 用户画像 | `ProfileStatusModels.kt` | `profile_page.dart`、`user_insight_service.dart` | 保留原标签优先级，并加入当前账号个人资料完整度、校园身份、事项类型和时间分布证据 | 资料不足与组合画像规则测试通过 | 大数据量和多账号人工验收 |
-| 设置 / 偏好 / 隐私 | `ProfileScreenModule.kt` | `profile_page.dart` | 风控、低置信度、提醒、地图、安全边界和隐私说明已按源码拆分 | 全路由回归，偏好真实持久化 | iOS 权限状态 |
+| 设置 / 偏好 / 隐私 | `ProfileScreenModule.kt` | `profile_page.dart`、`storage_service.dart` | 风控、低置信度、提醒和地图设置按账号独立持久化，旧全局键只迁移给当前登录账号 | 账号 A/B 隔离、清理和模拟器迁移测试通过 | iOS 权限状态 |
 | 个人资料 | `ProfileScreenModule.kt` | `profile_page.dart`、`account_repository.dart` | 头像来源、82 dp 预览、字段分组、长度限制和真实保存已对齐 | 模拟器页面回归 | 实体设备相机/相册头像 |
 | 运行状态 / 数据空间 | Profile status/tile models | `profile_page.dart` | 真实权限、接口、存储和数据分层状态已对齐 | 全路由回归 | iOS 最终权限状态 |
 | 主题 / 字体 / 背景 | `AppTheme.kt`、`WeavingDesign.kt`、`res/font/*` | `app.dart`、`weaving_widgets.dart`、`assets/fonts/*` | 原颜色、字体、20 dp 卡片、毛玻璃边框、弥散光和动效参数已迁移 | 首页、相机、时间线和全部 ProfileRoute 截图回归 | iOS 字体栅格与安全区 |

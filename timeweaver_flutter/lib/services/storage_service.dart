@@ -44,6 +44,15 @@ class StorageService {
     return UserPreference.fromJson(Map<String, dynamic>.from(jsonDecode(raw)));
   }
 
+  Future<UserPreference?> loadPreferenceForAccount(String account) async {
+    final normalizedAccount = account.trim();
+    if (normalizedAccount.isEmpty) return null;
+    final prefs = await SharedPreferences.getInstance();
+    final raw = prefs.getString('$_preferenceKey:$normalizedAccount');
+    if (raw == null || raw.isEmpty) return null;
+    return UserPreference.fromJson(Map<String, dynamic>.from(jsonDecode(raw)));
+  }
+
   Future<List<InboxMessage>> loadInboxMessages() async {
     final prefs = await SharedPreferences.getInstance();
     final raw = prefs.getString(_inboxKey);
@@ -99,6 +108,19 @@ class StorageService {
     await prefs.setString(_preferenceKey, jsonEncode(preference.toJson()));
   }
 
+  Future<void> savePreferenceForAccount(
+    String account,
+    UserPreference preference,
+  ) async {
+    final normalizedAccount = account.trim();
+    if (normalizedAccount.isEmpty) return;
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString(
+      '$_preferenceKey:$normalizedAccount',
+      jsonEncode(preference.toJson()),
+    );
+  }
+
   Future<void> saveInboxMessages(List<InboxMessage> messages) async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setString(
@@ -133,5 +155,12 @@ class StorageService {
     await prefs.remove(_inboxKey);
     await prefs.remove(_exportsKey);
     await prefs.remove(_achievementUnlocksKey);
+    final scopedPreferenceKeys = prefs
+        .getKeys()
+        .where((key) => key.startsWith('$_preferenceKey:'))
+        .toList();
+    for (final key in scopedPreferenceKeys) {
+      await prefs.remove(key);
+    }
   }
 }
