@@ -9,51 +9,10 @@ import '../models/account_auth_result.dart';
 import '../models/account_user.dart';
 
 class AccountRepository {
-  static const testAccount = '1985';
-  static const testPassword = '12345678';
-  static const _testNickname = '织时测试账号';
-
   Database? _database;
 
   Future<void> initialize() async {
     await _db;
-  }
-
-  Future<AccountUser?> ensureBuiltInTestAccount() async {
-    final existing = await _findStoredUserByAccount(testAccount);
-    final now = DateTime.now().millisecondsSinceEpoch;
-    final salt = _generateSalt();
-    final db = await _db;
-    if (existing == null) {
-      await db.insert('users', {
-        'account': testAccount,
-        'nickname': _testNickname,
-        'avatar_uri': '',
-        'signature': '把校园碎片织成自己的节奏',
-        'birthday': '2005-01-01',
-        'school': '未填写学校',
-        'age': '21',
-        'gender': '未填写',
-        'major': '未填写专业',
-        'grade': '未填写年级',
-        'hometown': '未填写',
-        'password_hash': _hashPassword(testPassword, salt),
-        'salt': salt,
-        'created_at': now,
-        'last_login_at': now,
-      });
-    } else {
-      await db.update(
-        'users',
-        {
-          'password_hash': _hashPassword(testPassword, salt),
-          'salt': salt,
-        },
-        where: 'account = ?',
-        whereArgs: [testAccount],
-      );
-    }
-    return findUserByAccount(testAccount);
   }
 
   Future<AccountAuthResult> register(

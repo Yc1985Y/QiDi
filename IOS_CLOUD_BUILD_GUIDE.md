@@ -41,7 +41,8 @@ iOS 构建必须使用 macOS、Xcode 和 Apple 签名工具链。普通 Linux/Wi
 - `pubspec.yaml` iOS 依赖：当前核心插件均有 iOS/Darwin 实现，包括相册、通知、TTS、日历、分享、分享接收、语音、URL 打开、文件打开。
 - Android-only 路径：业务 Dart 代码未发现硬编码 Android 文件路径；Android 专用配置集中在 `android/`。
 - Windows-only 路径：`ios/Flutter/Generated.xcconfig` 等生成文件含本机 Windows 路径，但该目录已在 `ios/.gitignore` 中忽略；云端应通过 `flutter pub get` 重新生成。
-- 可能的 iOS 风险点：系统分享接收在 iOS 上还需要 Share Extension、App Group 和签名能力，必须在 TestFlight 真机中验证。
+- iOS 系统分享结构：已加入 `Share Extension` target、`ShareViewController.swift`、扩展 `Info.plist`、共享 App Group entitlements 和 Pod target。
+- 仍需云端与真机验证：扩展必须使用独立签名 profile，并在 TestFlight 上验证文本/图片分享回跳和真实解析。
 
 ## Codemagic 如何接入 GitHub
 
@@ -87,6 +88,7 @@ com.zhishi.timeweaver
 - Apple Developer 中的 App ID。
 - App Store Connect 中的 App 记录。
 - App Group，例如 `group.com.zhishi.timeweaver`。
+- Share Extension Bundle ID：`com.zhishi.timeweaver.ShareExtension`。
 
 Bundle Identifier 一旦用于 App Store Connect，后续不要随意改。
 
@@ -125,18 +127,18 @@ Bundle Identifier 一旦用于 App Store Connect，后续不要随意改。
 ## 有 Apple Developer Program 后如何上传 TestFlight
 
 1. 在 Apple Developer 中创建 App ID，Bundle ID 与工程一致。
-2. 为 Runner 和 Share Extension 配置 App Group。
+2. 创建 `com.zhishi.timeweaver.ShareExtension` 扩展 App ID，并为 Runner 和 Share Extension 配置同一个 App Group `group.com.zhishi.timeweaver`。
 3. 在 App Store Connect 创建 App。
 4. 在 Codemagic 配置 App Store Connect integration。
 5. 在 Codemagic 配置 signing certificate 和 provisioning profiles。
-6. 配置环境变量：
-   - `BUNDLE_ID`
+6. 为主 App 和 Share Extension 分别准备 App Store provisioning profile；`codemagic.yaml` 会在发布流程中拉取扩展 profile，并由 `xcode-project use-profiles` 应用。
+7. 配置环境变量：
    - `VLM_APP_ID`
    - `VLM_API_KEY`
-7. 运行 `ios-testflight-release` workflow。
-8. 构建成功后到 App Store Connect 的 TestFlight 页面等待处理。
-9. 添加 iPhone/iPad 使用的 Apple ID 为内部或外部测试员。
-10. 在 iPhone/iPad 安装 TestFlight，再安装《织时》测试版。
+8. 运行 `ios-testflight-release` workflow。
+9. 构建成功后到 App Store Connect 的 TestFlight 页面等待处理。
+10. 添加 iPhone/iPad 使用的 Apple ID 为内部或外部测试员。
+11. 在 iPhone/iPad 安装 TestFlight，再安装《织时》测试版。
 
 ## TestFlight 如何安装到 iPhone/iPad
 

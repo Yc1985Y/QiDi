@@ -42,6 +42,12 @@ report_assets/vendor/
 织时_Android原型/*.png
 **/artifacts/*.png
 **/report_assets/repaired_images/
+/timeweaver_flutter/captures/
+
+# Local agent work logs; official progress is recorded in 进度说明.md
+/task_plan.md
+/findings.md
+/progress.md
 
 # Secrets, certificates, and signing material
 *.env

@@ -21,6 +21,7 @@ GitHub Actions 已通过：
 - 已开通 Apple Developer Program 的 Apple ID。
 - 可用于 App Store Connect 的团队权限。
 - Bundle Identifier：`com.zhishi.timeweaver`。
+- Share Extension Bundle Identifier：`com.zhishi.timeweaver.ShareExtension`。
 - App Group：`group.com.zhishi.timeweaver`。
 - Distribution signing certificate。
 - App Store provisioning profile。
@@ -38,7 +39,8 @@ GitHub Actions 已通过：
 5. Bundle ID 选择 Explicit。
 6. 填写 `com.zhishi.timeweaver`。
 7. 按真实功能开启需要的 capability，至少关注 App Groups。
-8. App Group 使用 `group.com.zhishi.timeweaver`，Runner 和 Share Extension 后续必须使用同一个组。
+8. 再创建 Explicit App ID `com.zhishi.timeweaver.ShareExtension`。
+9. App Group 使用 `group.com.zhishi.timeweaver`，Runner 和 Share Extension 必须使用同一个组。
 
 当前工程的 iOS Runner 已使用 `com.zhishi.timeweaver`。`Info.plist` 通过 `$(PRODUCT_BUNDLE_IDENTIFIER)` 引用，不单独硬写。
 
@@ -74,8 +76,9 @@ Codemagic 需要配置：
 - `VLM_API_KEY`。
 - iOS distribution certificate。
 - App Store provisioning profile，匹配 `com.zhishi.timeweaver`。
+- Share Extension App Store provisioning profile，匹配 `com.zhishi.timeweaver.ShareExtension`。
 
-如果使用 Share Extension，后续还需要为扩展 target 配置独立 Bundle ID、App Group 和 provisioning profile。
+工程已包含 Share Extension target。Codemagic 发布 workflow 会通过 App Store Connect integration 拉取扩展 profile，再由 `xcode-project use-profiles` 同时匹配主 App 与扩展签名。Apple Developer 后台必须提前创建扩展 App ID，并给两个 App ID 启用同一个 App Group。
 
 ## Codemagic 如何上传 TestFlight
 
@@ -114,4 +117,3 @@ Codemagic 需要配置：
 - 无网络和接口失败时的真实错误提示。
 
 未在 iPhone/iPad 上运行前，不能声称 iOS 真机验证、TestFlight 验收或上架前功能验收已完成。
-

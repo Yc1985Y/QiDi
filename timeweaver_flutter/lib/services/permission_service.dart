@@ -39,4 +39,9 @@ class PermissionService {
     final status = await Permission.notification.request();
     return status.isGranted || status.isLimited;
   }
+
+  Future<bool> requestMicrophone() async {
+    final status = await Permission.microphone.request();
+    return status.isGranted || status.isLimited;
+  }
 }

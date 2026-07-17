@@ -101,7 +101,7 @@ class EventItem {
   factory EventItem.fromJson(Map<String, dynamic> json) {
     return EventItem(
       id: json['id'] as String,
-      title: json['title'] as String? ?? '新的校园事项',
+      title: json['title'] as String? ?? '',
       eventType: json['eventType'] as String? ?? '校园安排',
       startTimeIso: json['startTimeIso'] as String?,
       deadlineIso: json['deadlineIso'] as String?,

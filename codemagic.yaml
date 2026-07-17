@@ -76,6 +76,9 @@ workflows:
       - name: Apply Codemagic iOS signing profiles
         script: |
           cd timeweaver_flutter
+          app-store-connect fetch-signing-files "com.zhishi.timeweaver.ShareExtension" \
+            --type IOS_APP_STORE \
+            --create
           xcode-project use-profiles
       - name: Build signed IPA
         script: |

@@ -1,52 +1,40 @@
 # 真实功能完成报告
 
-更新时间：`2026-07-03`
+更新时间：`2026-07-17`
 
-| 原安卓功能 | Flutter 是否已对齐 | 对应 Flutter 文件 | 是否真实功能 | 是否需要 iOS 真机验证 | 备注 |
-|---|---|---|---|---|---|
-| 本地账号登录 | 是 | `lib/pages/login_page.dart` `lib/repositories/account_repository.dart` | 是 | 否 | SQLite + 会话恢复 |
-| 本地账号注册 | 是 | `lib/pages/login_page.dart` `lib/repositories/account_repository.dart` | 是 | 否 | 无云假登录 |
-| 个人资料保存 | 是 | `lib/pages/profile_page.dart` `lib/app.dart` | 是 | 部分需要 | 头像拍照 / 相册在 iOS 需真机验收 |
-| 文本输入解析 | 是 | `lib/pages/input_page.dart` `lib/services/parser_service.dart` | 是 | 否 | 缺 API key 时真实报错 |
-| 剪贴板导入 | 是 | `lib/pages/input_page.dart` | 是 | 否 | 非 placeholder |
-| 相册导入 | 是 | `lib/pages/input_page.dart` | 是 | 是 | iOS 照片权限需真机验收 |
-| 实时拍照导入 | 部分 | `lib/pages/live_camera_capture_page.dart` | 是 | 是 | Android 已本地编译通过，iOS 需真机验证 |
-| 语音输入 | 是 | `lib/app.dart` `lib/services/speech_service.dart` | 是 | 是 | iOS 录音/识别需真机验收 |
-| 系统分享文本导入 | 是 | `lib/services/share_receive_service.dart` | 是 | 是 | iOS 主 App 链路保留，Share Extension 仍需完成验证 |
-| 系统分享图片导入 | 是 | `lib/services/share_receive_service.dart` | 是 | 是 | 同上 |
-| OCR 识别 | 是 | `lib/services/ocr_service.dart` | 是 | 是 | iOS 图片输入链路需真机验收 |
-| LLM 结构化解析 | 是 | `lib/services/parser_service.dart` | 是 | 否 | 不返回 mock 结果 |
-| 独立校验页 | 是 | `lib/pages/review_page.dart` | 是 | 否 | 保留真实编辑和确认 |
-| 冲突检测 | 是 | `lib/app.dart` `lib/pages/review_page.dart` | 是 | 否 | 使用真实时间线数据 |
-| 确认写入时间线 | 是 | `lib/app.dart` | 是 | 否 | 真写本地存储 |
-| 时间线日视图 | 是 | `lib/pages/timeline_page.dart` `lib/pages/timeline_logic.dart` | 是 | 否 | |
-| 时间线周视图 | 是 | `lib/pages/timeline_page.dart` `lib/pages/timeline_logic.dart` | 是 | 否 | |
-| 时间线月视图 | 是 | `lib/pages/timeline_page.dart` `lib/pages/timeline_logic.dart` | 是 | 否 | |
-| 日历总览 | 是 | `lib/pages/timeline_page.dart` | 是 | 否 | 当前为内嵌结构 |
-| 时间线详情编辑 | 是 | `lib/pages/timeline_page.dart` | 是 | 否 | |
-| 地图导航 | 是 | `lib/services/integration_service.dart` | 是 | 是 | iOS 地图跳转需真机验收 |
-| 复制摘要 | 是 | `lib/services/integration_service.dart` | 是 | 否 | |
-| 系统分享出站 | 是 | `lib/services/integration_service.dart` | 是 | 是 | iOS 分享面板需真机验收 |
-| 复制成新事项 | 是 | `lib/app.dart` | 是 | 否 | |
-| 删除事项 | 是 | `lib/app.dart` | 是 | 否 | |
-| 本地提醒 | 是 | `lib/services/reminder_service.dart` | 是 | 是 | iOS 通知权限/触发需真机验收 |
-| 系统日历写入 | 是 | `lib/services/integration_service.dart` | 是 | 是 | iOS 日历权限与写入需真机验收 |
-| 导出 PDF | 是 | `lib/services/timeline_export_service.dart` | 是 | 是 | iOS 打开文件需真机验收 |
-| 导出 PNG | 是 | `lib/services/timeline_export_service.dart` | 是 | 是 | 同上 |
-| 导出 JPG | 是 | `lib/services/timeline_export_service.dart` | 是 | 是 | 同上 |
-| 导出记录 | 是 | `lib/models/export_record.dart` `lib/pages/profile_page.dart` | 是 | 否 | 本地持久化 |
-| 通知中心 | 是 | `lib/models/inbox_message.dart` `lib/pages/profile_page.dart` | 是 | 否 | 真回流数据 |
-| 历史记录筛选 | 是 | `lib/pages/profile_page.dart` | 是 | 否 | 日期 / 状态 / 来源 |
-| 运行状态 | 是 | `lib/pages/profile_page.dart` | 是 | 部分需要 | 权限可读，iOS 最终状态需真机确认 |
-| 用户画像 | 部分 | `lib/pages/profile_page.dart` | 是 | 否 | 真实计算，但视觉未完全 1:1 |
-| 成就页 | 部分 | `lib/pages/profile_page.dart` | 是 | 否 | 基于真实计数，视觉仍可继续收敛 |
-| 隐私与安全偏好 | 是 | `lib/pages/profile_page.dart` | 是 | 否 | 真写偏好 |
-| 数据空间 | 部分 | `lib/pages/profile_page.dart` | 是 | 否 | 功能真实，视觉结构仍有尾差 |
+| 功能 | 真实实现 | 主要实现文件 | Windows / Android 验证 | 仍需真机验证 |
+|---|---|---|---|---|
+| 本地账号注册、登录、会话恢复 | 是 | `login_page.dart`、`account_repository.dart`、`account_session_service.dart` | 模拟器真实账号和重启恢复通过 | iOS 输入体验 |
+| 个人资料与头像 | 是 | `profile_page.dart`、`account_repository.dart` | 页面、字段和本地保存回归通过 | Android/iOS 实体相机和相册 |
+| 文本、剪贴板输入 | 是 | `home_page.dart` | 真实文本提交通过 | iOS 输入法 |
+| 实时拍照、相册输入 | 是 | `live_camera_capture_page.dart`、`home_page.dart` | 模拟器真实预览非空 | 实体摄像头和相册权限 |
+| 系统分享文本/图片导入 | 是 | `share_receive_service.dart`、平台配置 | Android 架构和编译通过 | iOS Share Extension 真机 |
+| vivo OCR、VLM 结构化解析 | 是 | `ocr_service.dart`、`parser_service.dart` | 真实 key、真实网络返回通过 | iOS 图片来源 |
+| vivo WebSocket 语音识别 | 是 | `speech_service.dart`、`vivo_asr_protocol.dart` | 模拟器真实返回文本并写入输入框 | 实体机中文语音质量、iOS 麦克风 |
+| clarification 与解析校验 | 是 | `review_page.dart`、`review_logic.dart` | 真实缺时间请求进入澄清；补齐后提升为 create_event | iOS 键盘 |
+| 冲突检测与确认写入 | 是 | `app.dart`、`review_page.dart` | 真实写入时间线通过 | 大数据量冲突样本 |
+| 日/周/月时间线和日历总览 | 是 | `timeline_page.dart`、`timeline_logic.dart` | 打开、显示、切换和重启持久化通过 | iPad 宽屏 |
+| 时间线详情、编辑、复制、分享、副本、删除 | 是 | `timeline_page.dart`、`integration_service.dart` | 详情和真实删除通过 | 系统分享/地图实体机；编辑和副本继续人工验收 |
+| 本地提醒 | 是 | `reminder_service.dart` | 权限和排程链路已接入 | Android/iOS 到点触发 |
+| 系统日历 | 是 | `integration_service.dart` | 真实打开 Google Calendar Intent；模拟器无账号 | 最终保存需实体 Android/iPhone/iPad |
+| 地图导航 | 是 | `integration_service.dart` | 分平台 URI 已实现 | 实体设备地图 App |
+| PDF / PNG / JPG 导出 | 是 | `timeline_export_service.dart` | 真实文件生成代码、构建和入口通过 | iOS 文件打开/分享 |
+| 通知中心、历史、统计、成就 | 是 | `profile_page.dart` | 全路由回归通过 | 大数据量和 iPad 宽屏 |
+| 智能体中心、体检、画像 | 是 | `profile_page.dart` | 真实状态和全路由回归通过 | 大数据量 |
+| 偏好、隐私、运行状态、数据空间 | 是 | `profile_page.dart`、`app.dart` | 真实偏好与运行状态回归通过 | iOS 权限状态 |
+| iOS no-codesign 云编译 | 是 | `ios/*`、`codemagic.yaml`、GitHub Actions | GitHub Actions 全链路通过 | 正式签名、TestFlight、iPhone/iPad |
 
-## 当前严格结论
+## 验证结果
 
-- 未发现为了过流程而新增的 `mock / demo / placeholder / 空壳按钮`。
-- 已完成的条目都对应真实入口、真实动作、真实存储或真实系统调用。
-- 仍不能宣称完成的部分主要是两类：
-  1. iOS 侧系统能力真机验收；
-  2. 某些页面的视觉与结构还没有做到和 Android 原工程完全 1:1。
+- `flutter analyze`：通过，`No issues found`。
+- `flutter test`：通过，23 项测试全部通过。
+- `flutter build apk --debug`：通过，并已覆盖安装到 `emulator-5554`。
+- 真实 vivo 解析、真实 vivo ASR、相机预览、clarification 补齐、时间线写入、重启持久化和删除均已在模拟器执行。
+- 测试过程中创建的 `Student club activity` 已真实删除，测试账号未残留该记录。
+
+## 未完成边界
+
+- 没有 Apple Developer Program 签名资料和 TestFlight 安装结果，因此不能声称 iOS 真机功能完成。
+- 模拟器未登录 Google 账号，系统日历只验证到真实编辑 Intent 打开，不能声称最终保存完成。
+- 本地通知到点触发、实体设备摄像头/麦克风、地图 App 和系统分享面板仍需实体机验收。
+- 代码扫描未发现新增的 mock/demo/假数据/空壳按钮；文案中的“兜底”是 Android 原设计里的地点策略名称，不代表假实现。

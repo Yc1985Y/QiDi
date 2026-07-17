@@ -1,5 +1,28 @@
 import 'source_info.dart';
 
+abstract final class NoticeAction {
+  static const createEvent = 'create_event';
+  static const navigate = 'navigate';
+  static const ttsFeedback = 'tts_feedback';
+  static const clarification = 'clarification';
+  static const unknown = 'unknown';
+
+  static String normalize(Object? value) {
+    switch (value?.toString().trim().toLowerCase()) {
+      case createEvent:
+        return createEvent;
+      case navigate:
+        return navigate;
+      case ttsFeedback:
+        return ttsFeedback;
+      case clarification:
+        return clarification;
+      default:
+        return unknown;
+    }
+  }
+}
+
 class ParsedNotice {
   const ParsedNotice({
     required this.id,
@@ -16,6 +39,8 @@ class ParsedNotice {
     this.reminderSuggestion = '提前1天 / 提前1小时',
     this.rawPayload,
     this.status = '待确认',
+    this.action = NoticeAction.createEvent,
+    this.fallbackQuery,
   });
 
   final String id;
@@ -30,6 +55,8 @@ class ParsedNotice {
   final String reminderSuggestion;
   final String? rawPayload;
   final String status;
+  final String action;
+  final String? fallbackQuery;
   final String createdAtIso;
   final String ownerAccount;
 
@@ -46,6 +73,8 @@ class ParsedNotice {
     String? reminderSuggestion,
     String? rawPayload,
     String? status,
+    String? action,
+    String? fallbackQuery,
     String? createdAtIso,
     String? ownerAccount,
   }) {
@@ -62,6 +91,8 @@ class ParsedNotice {
       reminderSuggestion: reminderSuggestion ?? this.reminderSuggestion,
       rawPayload: rawPayload ?? this.rawPayload,
       status: status ?? this.status,
+      action: action ?? this.action,
+      fallbackQuery: fallbackQuery ?? this.fallbackQuery,
       createdAtIso: createdAtIso ?? this.createdAtIso,
       ownerAccount: ownerAccount ?? this.ownerAccount,
     );
@@ -81,6 +112,8 @@ class ParsedNotice {
       'reminderSuggestion': reminderSuggestion,
       'rawPayload': rawPayload,
       'status': status,
+      'action': action,
+      'fallbackQuery': fallbackQuery,
       'createdAtIso': createdAtIso,
       'ownerAccount': ownerAccount,
     };
@@ -89,7 +122,7 @@ class ParsedNotice {
   factory ParsedNotice.fromJson(Map<String, dynamic> json) {
     return ParsedNotice(
       id: json['id'] as String,
-      title: json['title'] as String? ?? '新的校园事项',
+      title: json['title'] as String? ?? '',
       eventType: json['eventType'] as String? ?? '校园安排',
       startTimeIso: json['startTimeIso'] as String?,
       deadlineIso: json['deadlineIso'] as String?,
@@ -103,6 +136,10 @@ class ParsedNotice {
           json['reminderSuggestion'] as String? ?? '提前1天 / 提前1小时',
       rawPayload: json['rawPayload'] as String?,
       status: json['status'] as String? ?? '待确认',
+      action: NoticeAction.normalize(
+        json['action'] ?? NoticeAction.createEvent,
+      ),
+      fallbackQuery: json['fallbackQuery'] as String?,
       createdAtIso:
           json['createdAtIso'] as String? ?? DateTime.now().toIso8601String(),
       ownerAccount: json['ownerAccount'] as String? ?? '',

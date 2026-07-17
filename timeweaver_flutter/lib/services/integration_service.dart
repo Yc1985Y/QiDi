@@ -1,3 +1,5 @@
+import 'dart:io';
+
 import 'package:add_2_calendar/add_2_calendar.dart' as calendar;
 import 'package:flutter/services.dart';
 import 'package:share_plus/share_plus.dart';
@@ -35,14 +37,40 @@ class IntegrationService {
   Future<bool> openMap(EventItem event) async {
     final location = event.location?.trim();
     if (location == null || location.isEmpty) return false;
-    final uri = Uri.parse(
-      'https://maps.apple.com/?q=${Uri.encodeComponent(location)}',
-    );
+    return openLocation(location);
+  }
+
+  Future<bool> openLocation(String location) async {
+    final normalized = location.trim();
+    if (normalized.isEmpty) return false;
+    if (Platform.isAndroid) {
+      final nativeUri = Uri.parse(
+        'geo:0,0?q=${Uri.encodeComponent(normalized)}',
+      );
+      if (await launchUrl(nativeUri, mode: LaunchMode.externalApplication)) {
+        return true;
+      }
+      return launchUrl(
+        Uri.https('www.google.com', '/maps/search/', {
+          'api': '1',
+          'query': normalized,
+        }),
+        mode: LaunchMode.externalApplication,
+      );
+    }
+    final uri = Platform.isIOS
+        ? Uri.https('maps.apple.com', '/', {'q': normalized})
+        : Uri.https('www.google.com', '/maps/search/', {
+            'api': '1',
+            'query': normalized,
+          });
     return launchUrl(uri, mode: LaunchMode.externalApplication);
   }
 
   Future<void> shareEvent(EventItem event) async {
-    await SharePlus.instance.share(ShareParams(text: buildShareText(event)));
+    await SharePlus.instance.share(
+      ShareParams(subject: '分享织时时间线', text: buildShareText(event)),
+    );
   }
 
   Future<void> copyEvent(EventItem event) async {
@@ -50,14 +78,22 @@ class IntegrationService {
   }
 
   String buildShareText(EventItem event) {
+    final title = event.title.trim().isEmpty ? '未命名事项' : event.title.trim();
+    final location = event.location?.trim().isNotEmpty == true
+        ? event.location!.trim()
+        : '地点待补充';
+    final reminderSummary = event.reminders
+        .map((reminder) => reminder.label.trim())
+        .where((label) => label.isNotEmpty)
+        .join(' / ');
     return [
-      '【织时事项】${event.title}',
-      '类型：${event.eventType}',
-      '时间：${ZhishiDateUtils.formatDateTime(event.startTimeIso)}',
-      if (event.location != null && event.location!.trim().isNotEmpty)
-        '地点：${event.location}',
+      '来自《织时》的校园日程',
+      '事项：$title',
+      '时间：${ZhishiDateUtils.formatDateTime(event.startTimeIso ?? event.deadlineIso)}',
+      '地点：$location',
+      '提醒：${reminderSummary.isEmpty ? '未设置' : reminderSummary}',
       if (event.description != null && event.description!.trim().isNotEmpty)
-        '说明：${event.description}',
+        '摘要：${event.description!.trim()}',
     ].join('\n');
   }
 }

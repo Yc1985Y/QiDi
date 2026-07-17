@@ -1,6 +1,7 @@
 import 'package:intl/intl.dart';
 
 import '../models/event_item.dart';
+import '../models/parsed_notice.dart';
 import '../utils/date_utils.dart';
 
 enum TimelineMode { day, week, month }
@@ -93,7 +94,7 @@ List<DateTime> timelineWeekWindow(DateTime anchor) {
 
 List<DateTime?> timelineMonthMatrix(DateTime month) {
   final firstDay = DateTime(month.year, month.month, 1);
-  final firstOffset = firstDay.weekday % 7;
+  final firstOffset = (firstDay.weekday + 6) % 7;
   final totalDays = DateTime(month.year, month.month + 1, 0).day;
   final cells = <DateTime?>[];
   for (var index = 0; index < firstOffset; index++) {
@@ -106,6 +107,72 @@ List<DateTime?> timelineMonthMatrix(DateTime month) {
     cells.add(null);
   }
   return cells;
+}
+
+EventItem? findNextTimelineEvent(List<EventItem> items, {DateTime? now}) {
+  final ordered = [...items]
+    ..sort((left, right) {
+      final leftTime = timelineScheduleTime(left) ?? DateTime(9999);
+      final rightTime = timelineScheduleTime(right) ?? DateTime(9999);
+      return leftTime.compareTo(rightTime);
+    });
+  final reference = now ?? DateTime.now();
+  for (final item in ordered) {
+    final schedule = timelineScheduleTime(item) ?? DateTime(9999);
+    if (!schedule.isBefore(reference)) return item;
+  }
+  return ordered.firstOrNull;
+}
+
+String buildTimelinePendingPrompt(ParsedNotice notice) {
+  final fallbackQuery = notice.fallbackQuery?.trim() ?? '';
+  if (fallbackQuery.isNotEmpty) return fallbackQuery;
+  return switch (notice.action) {
+    NoticeAction.createEvent =>
+      '识别到校园日程：${notice.title.trim().isEmpty ? '新的校园日程' : notice.title.trim()}，'
+          '时间 ${(notice.startTimeIso ?? '').trim().isEmpty ? '未确认时间' : notice.startTimeIso!.trim()}，'
+          '地点 ${(notice.location ?? '').trim().isEmpty ? '无地点' : notice.location!.trim()}。'
+          '是否织入你的专属时间线？',
+    NoticeAction.navigate =>
+      '识别到校园地点：${(notice.location ?? '').trim().isEmpty ? '校园地点' : notice.location!.trim()}。'
+          '是否打开地图导航？',
+    NoticeAction.ttsFeedback =>
+      (notice.description ?? '').trim().isEmpty
+          ? '已生成语音反馈。是否继续播报？'
+          : notice.description!.trim(),
+    _ => '当前结果暂不适合执行，请重试。',
+  };
+}
+
+EventItem buildEditedTimelineEvent({
+  required EventItem original,
+  required String title,
+  required String time,
+  required String location,
+  required String summary,
+  DateTime? updatedAt,
+}) {
+  final cleanTitle = title.trim().isEmpty ? original.title : title.trim();
+  final originalTime = original.startTimeIso ?? original.deadlineIso ?? '';
+  final cleanTime = time.trim().isEmpty ? originalTime : time.trim();
+  final cleanLocation = location.trim().isEmpty
+      ? (original.location ?? '')
+      : location.trim();
+  final cleanSummary = summary.trim().isEmpty
+      ? (original.description ?? '')
+      : summary.trim();
+  final timeChanged = cleanTime != originalTime;
+  final normalizedTime = timeChanged
+      ? ZhishiDateUtils.parse(cleanTime)?.toIso8601String() ?? originalTime
+      : originalTime;
+  return original.copyWith(
+    title: cleanTitle,
+    startTimeIso: normalizedTime,
+    location: cleanLocation,
+    description: cleanSummary,
+    status: original.status.contains('已') ? original.status : '待校验',
+    updatedAtIso: (updatedAt ?? DateTime.now()).toIso8601String(),
+  );
 }
 
 String timelineHeaderTitle([DateTime? now]) {
@@ -150,4 +217,8 @@ bool _isSameDay(DateTime left, DateTime right) {
   return left.year == right.year &&
       left.month == right.month &&
       left.day == right.day;
+}
+
+extension _FirstOrNullExtension<E> on Iterable<E> {
+  E? get firstOrNull => isEmpty ? null : first;
 }

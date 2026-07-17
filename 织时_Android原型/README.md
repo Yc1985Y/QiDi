@@ -31,8 +31,8 @@
 项目当前优先从版本控制内的 `gradle.properties` 读取 vivo 接口配置；如果本地 `local.properties` 中提供同名字段，则本地配置会覆盖仓库默认值。
 
 ```properties
-VLM_APP_ID=2026839598
-VLM_API_KEY=sk-xuanji-2026839598-Q2JIZFlJa0NlRVdkTUVoZw==
+VLM_APP_ID=<YOUR_VLM_APP_ID>
+VLM_API_KEY=<YOUR_VLM_API_KEY>
 ```
 
 当前默认在线模型配置：

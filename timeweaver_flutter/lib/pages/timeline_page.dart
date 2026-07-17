@@ -4,11 +4,7 @@ import 'package:intl/intl.dart';
 import '../app.dart';
 import '../models/event_item.dart';
 import '../models/parsed_notice.dart';
-import '../services/timeline_export_service.dart';
-import '../utils/date_utils.dart';
-import '../widgets/empty_state.dart';
 import '../widgets/weaving_widgets.dart';
-import 'review_page.dart';
 import 'timeline_logic.dart';
 
 class TimelinePage extends StatefulWidget {
@@ -41,13 +37,6 @@ class _TimelinePageState extends State<TimelinePage> {
         final activeMonth =
             _activeMonthOverride ??
             DateTime(selectedDate.year, selectedDate.month);
-        final activeMonthAgendaCount = groupedItems
-            .where(
-              (bucket) =>
-                  bucket.date.year == activeMonth.year &&
-                  bucket.date.month == activeMonth.month,
-            )
-            .fold<int>(0, (sum, bucket) => sum + bucket.items.length);
         final visibleBuckets = buildVisibleBuckets(
           groupedItems: groupedItems,
           activeMode: _activeMode,
@@ -87,7 +76,6 @@ class _TimelinePageState extends State<TimelinePage> {
                 _TimelineMainView(
                   controller: widget.controller,
                   activeMode: _activeMode,
-                  activeMonthAgendaCount: activeMonthAgendaCount,
                   visibleBuckets: visibleBuckets,
                   reminderHeadline: _buildReminderHeadline(
                     controller: widget.controller,
@@ -96,12 +84,11 @@ class _TimelinePageState extends State<TimelinePage> {
                   onModeSelected: (mode) => setState(() => _activeMode = mode),
                   onOpenCalendar: () =>
                       setState(() => _showCalendarOverview = true),
-                  onOpenPendingReview: pendingNotice == null
-                      ? null
-                      : () => _openReviewPage(context, pendingNotice),
                   onConfirmPending: pendingNotice == null
                       ? null
-                      : () => widget.controller.confirmNotice(pendingNotice),
+                      : () => widget.controller.confirmNoticeWithTransfer(
+                          pendingNotice,
+                        ),
                   onCancelPending: pendingNotice == null
                       ? null
                       : () => widget.controller.discardNotice(pendingNotice),
@@ -136,10 +123,7 @@ class _TimelinePageState extends State<TimelinePage> {
 
   String _buildReminderHeadline({required AppController controller}) {
     final confirmed = controller.confirmedEvents;
-    final nextAgenda = confirmed.where((item) {
-      final time = timelineScheduleTime(item);
-      return time != null && !time.isBefore(DateTime.now());
-    }).firstOrNull;
+    final nextAgenda = findNextTimelineEvent(confirmed);
     if (nextAgenda != null) {
       final dateText = timelineScheduleTime(nextAgenda) == null
           ? eventDisplayTimeLabel(nextAgenda)
@@ -154,22 +138,10 @@ class _TimelinePageState extends State<TimelinePage> {
       return controller.nextReminderText;
     }
     if (confirmed.isNotEmpty) {
-      return '已沉淀 ${confirmed.length} 条安排，其中 '
-          '${widget.controller.scheduledReminderCount} 项仍有后续提醒。';
+      return '已经整理 ${confirmed.length} 条安排，已设置 '
+          '${widget.controller.scheduledReminderCount} 项提醒';
     }
-    return '还没有新的提醒，确认一条校园通知后会在这里出现。';
-  }
-
-  Future<void> _openReviewPage(
-    BuildContext context,
-    ParsedNotice notice,
-  ) async {
-    await Navigator.of(context).push(
-      MaterialPageRoute<void>(
-        builder: (context) =>
-            ReviewPage(controller: widget.controller, notice: notice),
-      ),
-    );
+    return '还没有生成安排，可以从首页导入通知开始整理';
   }
 }
 
@@ -177,13 +149,11 @@ class _TimelineMainView extends StatelessWidget {
   const _TimelineMainView({
     required this.controller,
     required this.activeMode,
-    required this.activeMonthAgendaCount,
     required this.visibleBuckets,
     required this.reminderHeadline,
     required this.pendingNotice,
     required this.onModeSelected,
     required this.onOpenCalendar,
-    required this.onOpenPendingReview,
     required this.onConfirmPending,
     required this.onCancelPending,
     required this.onItemTap,
@@ -191,13 +161,11 @@ class _TimelineMainView extends StatelessWidget {
 
   final AppController controller;
   final TimelineMode activeMode;
-  final int activeMonthAgendaCount;
   final List<TimelineDayBucket> visibleBuckets;
   final String reminderHeadline;
   final ParsedNotice? pendingNotice;
   final ValueChanged<TimelineMode> onModeSelected;
   final VoidCallback onOpenCalendar;
-  final VoidCallback? onOpenPendingReview;
   final Future<void> Function()? onConfirmPending;
   final Future<void> Function()? onCancelPending;
   final ValueChanged<EventItem> onItemTap;
@@ -205,111 +173,67 @@ class _TimelineMainView extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return ListView(
-      padding: const EdgeInsets.fromLTRB(16, 18, 16, 24),
+      padding: const EdgeInsets.fromLTRB(16, 16, 16, 120),
       children: [
-        Row(
-          children: [
-            Expanded(
-              child: Text(
-                timelineHeaderTitle(),
-                style: Theme.of(context).textTheme.headlineMedium,
-              ),
-            ),
-            PopupMenuButton<TimelineExportFormat>(
-              tooltip: '导出时间线',
-              enabled: controller.confirmedEvents.isNotEmpty,
-              onSelected: (format) {
-                switch (format) {
-                  case TimelineExportFormat.pdf:
-                    controller.exportTimelinePdf();
-                  case TimelineExportFormat.png:
-                    controller.exportTimelinePng();
-                  case TimelineExportFormat.jpg:
-                    controller.exportTimelineJpg();
-                }
-              },
-              itemBuilder: (context) => const [
-                PopupMenuItem(
-                  value: TimelineExportFormat.pdf,
-                  child: Text('导出 PDF'),
-                ),
-                PopupMenuItem(
-                  value: TimelineExportFormat.png,
-                  child: Text('导出 PNG'),
-                ),
-                PopupMenuItem(
-                  value: TimelineExportFormat.jpg,
-                  child: Text('导出 JPG'),
-                ),
-              ],
-              child: Container(
-                width: 42,
-                height: 42,
-                decoration: BoxDecoration(
-                  color: Theme.of(context).colorScheme.secondaryContainer,
-                  borderRadius: BorderRadius.circular(999),
-                ),
-                child: Icon(
-                  Icons.download_rounded,
-                  color: Theme.of(context).colorScheme.onSecondaryContainer,
-                ),
-              ),
-            ),
-            const SizedBox(width: 8),
-            IconButton.filledTonal(
-              tooltip: '返回首页',
-              onPressed: () => controller.setTab(0),
-              icon: const Icon(Icons.home_rounded),
-            ),
-          ],
+        Text(
+          timelineHeaderTitle(),
+          style: Theme.of(context).textTheme.headlineLarge?.copyWith(
+            fontSize: 21,
+            height: 27 / 21,
+            fontWeight: FontWeight.w800,
+          ),
         ),
-        const SizedBox(height: 12),
-        StatusStrip(
-          message: controller.statusMessage,
-          error: controller.errorMessage,
-          busy: controller.isBusy,
-        ),
-        const SizedBox(height: 14),
-        WeavingCard(
-          color: Colors.white.withValues(alpha: 0.84),
-          child: Text(
-            reminderHeadline,
-            style: const TextStyle(
-              fontSize: 20,
-              fontWeight: FontWeight.w900,
-              color: AppColors.primary,
-              height: 1.3,
+        const SizedBox(height: 10),
+        Align(
+          alignment: Alignment.centerLeft,
+          child: WeavingCard(
+            color: AppColors.surfaceHigh.withValues(alpha: 0.92),
+            child: Text(
+              reminderHeadline,
+              style: Theme.of(
+                context,
+              ).textTheme.headlineMedium?.copyWith(color: AppColors.primary),
             ),
           ),
         ),
-        const SizedBox(height: 14),
+        const SizedBox(height: 10),
         _TimelineActionBar(
           activeMode: activeMode,
-          activeMonthAgendaCount: activeMonthAgendaCount,
           onModeSelected: onModeSelected,
           onOpenCalendar: onOpenCalendar,
         ),
         if (pendingNotice != null) ...[
-          const SizedBox(height: 14),
+          const SizedBox(height: 10),
           _PendingTimelineCard(
             notice: pendingNotice!,
-            onOpenReview: onOpenPendingReview,
             onConfirm: onConfirmPending,
             onCancel: onCancelPending,
             onGoHome: () => controller.setTab(0),
           ),
         ],
-        const SizedBox(height: 14),
+        const SizedBox(height: 10),
         if (visibleBuckets.isEmpty)
-          EmptyState(
-            title: controller.confirmedEvents.isEmpty
-                ? '这一段时间还没有安排'
-                : '当前视图暂无安排',
-            summary: controller.confirmedEvents.isEmpty
-                ? '从首页导入截图、拍照、语音或文本后，确认过的事项会按时间顺序沉淀到这里。'
-                : '切换到本日、本周、本月或日历总览后再查看。',
-            actionLabel: '去首页',
-            onAction: () => controller.setTab(0),
+          WeavingCard(
+            color: AppColors.surfaceWarm,
+            child: Column(
+              children: [
+                Text(
+                  '暂无时间线安排',
+                  textAlign: TextAlign.center,
+                  style: Theme.of(context).textTheme.headlineMedium?.copyWith(
+                    color: AppColors.primary,
+                  ),
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  '还没有确认的校园通知进入时间线，你可以先从首页导入通知，识别后再进行确认。',
+                  textAlign: TextAlign.center,
+                  style: Theme.of(
+                    context,
+                  ).textTheme.bodyMedium?.copyWith(color: AppColors.muted),
+                ),
+              ],
+            ),
           )
         else
           ...visibleBuckets.map(
@@ -326,13 +250,11 @@ class _TimelineMainView extends StatelessWidget {
 class _TimelineActionBar extends StatelessWidget {
   const _TimelineActionBar({
     required this.activeMode,
-    required this.activeMonthAgendaCount,
     required this.onModeSelected,
     required this.onOpenCalendar,
   });
 
   final TimelineMode activeMode;
-  final int activeMonthAgendaCount;
   final ValueChanged<TimelineMode> onModeSelected;
   final VoidCallback onOpenCalendar;
 
@@ -342,14 +264,16 @@ class _TimelineActionBar extends StatelessWidget {
       children: [
         WeavingCard(
           onTap: onOpenCalendar,
+          interactionStyle: WeavingInteractionStyle.timelineSlide,
+          color: AppColors.surfaceLowest.withValues(alpha: 0.92),
           child: Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
+            crossAxisAlignment: CrossAxisAlignment.center,
             children: [
               Container(
                 width: 42,
                 height: 42,
                 decoration: const BoxDecoration(
-                  color: AppColors.primarySoft,
+                  color: AppColors.mint,
                   shape: BoxShape.circle,
                 ),
                 child: const Icon(
@@ -359,46 +283,18 @@ class _TimelineActionBar extends StatelessWidget {
               ),
               const SizedBox(width: 12),
               Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    const Text(
-                      '日历总览',
-                      style: TextStyle(
-                        fontWeight: FontWeight.w800,
-                        color: AppColors.primary,
-                      ),
-                    ),
-                    const SizedBox(height: 4),
-                    Text(
-                      '本月已织入 $activeMonthAgendaCount 条安排',
-                      style: const TextStyle(
-                        color: AppColors.muted,
-                        fontSize: 12,
-                        fontWeight: FontWeight.w700,
-                      ),
-                    ),
-                  ],
+                child: Text(
+                  '日历总览',
+                  style: Theme.of(context).textTheme.bodyLarge?.copyWith(
+                    color: AppColors.primary,
+                    fontWeight: FontWeight.w700,
+                  ),
                 ),
               ),
-              Column(
-                crossAxisAlignment: CrossAxisAlignment.end,
-                children: [
-                  Text(
-                    '当前${activeMode.label}',
-                    style: const TextStyle(
-                      color: AppColors.muted,
-                      fontSize: 12,
-                      fontWeight: FontWeight.w700,
-                    ),
-                  ),
-                  const SizedBox(height: 8),
-                  const Icon(
-                    Icons.arrow_forward_ios_rounded,
-                    size: 16,
-                    color: AppColors.primary,
-                  ),
-                ],
+              const Icon(
+                Icons.arrow_forward_ios_rounded,
+                size: 16,
+                color: AppColors.primary,
               ),
             ],
           ),
@@ -407,7 +303,7 @@ class _TimelineActionBar extends StatelessWidget {
         Container(
           padding: const EdgeInsets.all(3),
           decoration: BoxDecoration(
-            color: Colors.white.withValues(alpha: 0.78),
+            color: AppColors.surfaceLowest,
             borderRadius: BorderRadius.circular(99),
           ),
           child: Row(
@@ -445,14 +341,12 @@ class _TimelineActionBar extends StatelessWidget {
 class _PendingTimelineCard extends StatelessWidget {
   const _PendingTimelineCard({
     required this.notice,
-    required this.onOpenReview,
     required this.onConfirm,
     required this.onCancel,
     required this.onGoHome,
   });
 
   final ParsedNotice notice;
-  final VoidCallback? onOpenReview;
   final Future<void> Function()? onConfirm;
   final Future<void> Function()? onCancel;
   final VoidCallback onGoHome;
@@ -460,12 +354,12 @@ class _PendingTimelineCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return WeavingCard(
-      onTap: onOpenReview,
+      color: AppColors.surfaceWarm,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           const Text(
-            '还有一条待确认事项',
+            '最近提醒已备好，是否写入时间线？',
             style: TextStyle(
               fontSize: 18,
               fontWeight: FontWeight.w900,
@@ -474,21 +368,7 @@ class _PendingTimelineCard extends StatelessWidget {
           ),
           const SizedBox(height: 8),
           Text(
-            notice.title,
-            style: const TextStyle(
-              fontWeight: FontWeight.w800,
-              color: AppColors.text,
-            ),
-          ),
-          const SizedBox(height: 4),
-          Text(
-            [
-              if (notice.startTimeIso != null &&
-                  notice.startTimeIso!.trim().isNotEmpty)
-                ZhishiDateUtils.formatDateTime(notice.startTimeIso),
-              if (notice.location != null && notice.location!.trim().isNotEmpty)
-                notice.location!,
-            ].join(' · '),
+            buildTimelinePendingPrompt(notice),
             style: const TextStyle(color: AppColors.muted),
           ),
           const SizedBox(height: 12),
@@ -502,30 +382,20 @@ class _PendingTimelineCard extends StatelessWidget {
               ),
               const SizedBox(width: 10),
               Expanded(
-                child: OutlinedButton(
+                child: FilledButton(
                   onPressed: onGoHome,
-                  child: const Text('返回首页'),
+                  child: const Text('回到首页'),
                 ),
               ),
             ],
           ),
           const SizedBox(height: 10),
-          Row(
-            children: [
-              Expanded(
-                child: OutlinedButton(
-                  onPressed: onOpenReview,
-                  child: const Text('去校验'),
-                ),
-              ),
-              const SizedBox(width: 10),
-              Expanded(
-                child: OutlinedButton(
-                  onPressed: onCancel == null ? null : () => onCancel!.call(),
-                  child: const Text('取消'),
-                ),
-              ),
-            ],
+          SizedBox(
+            width: double.infinity,
+            child: FilledButton(
+              onPressed: onCancel == null ? null : () => onCancel!.call(),
+              child: const Text('取消'),
+            ),
           ),
         ],
       ),
@@ -548,18 +418,18 @@ class _TimelineDayGroup extends StatelessWidget {
           crossAxisAlignment: CrossAxisAlignment.end,
           children: [
             Text(
-              '${bucket.date.day}',
-              style: const TextStyle(
-                fontSize: 30,
-                fontWeight: FontWeight.w900,
+              DateFormat('M月d日', 'zh_CN').format(bucket.date),
+              style: Theme.of(context).textTheme.headlineMedium?.copyWith(
                 color: AppColors.primary,
+                fontWeight: FontWeight.w800,
               ),
             ),
             const SizedBox(width: 10),
             Text(
-              DateFormat('M月 EEEE', 'zh_CN').format(bucket.date),
+              DateFormat('EEEE', 'zh_CN').format(bucket.date),
               style: const TextStyle(
-                fontSize: 15,
+                fontSize: 14,
+                height: 20 / 14,
                 fontWeight: FontWeight.w700,
                 color: AppColors.muted,
               ),
@@ -570,48 +440,76 @@ class _TimelineDayGroup extends StatelessWidget {
         ...bucket.items.asMap().entries.map((entry) {
           final index = entry.key;
           final event = entry.value;
+          final expired = _isExpired(event);
           return Padding(
             padding: const EdgeInsets.only(bottom: 12),
             child: Row(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                SizedBox(
-                  width: 64,
-                  child: Column(
-                    children: [
-                      Text(
-                        eventDisplayTimeLabel(event),
-                        textAlign: TextAlign.center,
-                        style: const TextStyle(
-                          fontSize: 22,
-                          fontWeight: FontWeight.w900,
-                          color: AppColors.primary,
+                Column(
+                  children: [
+                    Text(
+                      eventDisplayTimeLabel(event),
+                      textAlign: TextAlign.center,
+                      style: TextStyle(
+                        fontFamily: 'PlusJakartaSans',
+                        fontSize: 32,
+                        height: 38 / 32,
+                        fontWeight: FontWeight.w900,
+                        color: expired
+                            ? AppColors.secondary
+                            : AppColors.primary,
+                      ),
+                    ),
+                    if (expired)
+                      const Text(
+                        '已过期',
+                        style: TextStyle(
+                          color: AppColors.secondary,
+                          fontSize: 10.5,
+                          height: 13 / 10.5,
+                          fontWeight: FontWeight.w700,
                         ),
                       ),
-                      const SizedBox(height: 8),
-                      Container(
-                        width: 4,
-                        height: index == bucket.items.length - 1 ? 30 : 94,
-                        decoration: BoxDecoration(
-                          color: const Color(0xFFE4D8CA),
-                          borderRadius: BorderRadius.circular(99),
-                        ),
+                    Container(
+                      width: 4,
+                      height: index == bucket.items.length - 1 ? 28 : 92,
+                      decoration: BoxDecoration(
+                        color: expired
+                            ? AppColors.secondary.withValues(alpha: 0.35)
+                            : AppColors.surfaceHighest,
+                        borderRadius: BorderRadius.circular(99),
                       ),
-                    ],
-                  ),
+                    ),
+                  ],
                 ),
-                const SizedBox(width: 12),
+                const SizedBox(width: 10),
                 Expanded(
                   child: WeavingCard(
                     onTap: () => onItemTap(event),
-                    color: switch (index % 3) {
-                      0 => Colors.white.withValues(alpha: 0.86),
-                      1 => AppColors.coral,
-                      _ => AppColors.gold,
-                    },
+                    interactionStyle: WeavingInteractionStyle.timelineSlide,
+                    color: expired
+                        ? AppColors.coral.withValues(alpha: 0.88)
+                        : switch (index % 3) {
+                            0 => AppColors.surfaceWarm,
+                            1 => AppColors.coral,
+                            _ => AppColors.gold,
+                          },
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
+                        if (expired) ...[
+                          const Text(
+                            '日期已过',
+                            style: TextStyle(
+                              color: AppColors.secondary,
+                              fontSize: 10.5,
+                              height: 13 / 10.5,
+                              fontWeight: FontWeight.w700,
+                            ),
+                          ),
+                          const SizedBox(height: 8),
+                        ],
                         Text(
                           event.title,
                           style: const TextStyle(
@@ -619,10 +517,10 @@ class _TimelineDayGroup extends StatelessWidget {
                             color: AppColors.text,
                           ),
                         ),
-                        const SizedBox(height: 6),
+                        const SizedBox(height: 8),
                         Text(
                           (event.location ?? '').trim().isEmpty
-                              ? '地点待补充'
+                              ? '地点待补全'
                               : event.location!,
                           style: const TextStyle(color: AppColors.muted),
                         ),
@@ -636,6 +534,11 @@ class _TimelineDayGroup extends StatelessWidget {
         }),
       ],
     );
+  }
+
+  bool _isExpired(EventItem event) {
+    final schedule = timelineScheduleTime(event);
+    return schedule != null && schedule.isBefore(DateTime.now());
   }
 }
 
@@ -678,15 +581,11 @@ class _TimelineCalendarOverview extends StatelessWidget {
     final matrix = timelineMonthMatrix(activeMonth);
 
     return ListView(
-      padding: const EdgeInsets.fromLTRB(16, 18, 16, 24),
+      padding: const EdgeInsets.fromLTRB(16, 16, 16, 120),
       children: [
         Row(
           children: [
-            IconButton.filledTonal(
-              onPressed: onBack,
-              tooltip: '返回',
-              icon: const Icon(Icons.arrow_back_rounded),
-            ),
+            _TimelineIconBubble(onTap: onBack),
             const SizedBox(width: 10),
             Expanded(
               child: Column(
@@ -695,23 +594,30 @@ class _TimelineCalendarOverview extends StatelessWidget {
                   const Text(
                     '日历总览',
                     style: TextStyle(
-                      fontSize: 24,
-                      fontWeight: FontWeight.w900,
+                      fontFamily: 'PlusJakartaSans',
+                      fontSize: 21,
+                      height: 27 / 21,
+                      fontWeight: FontWeight.w800,
                       color: AppColors.primary,
                     ),
                   ),
-                  const SizedBox(height: 2),
+                  const SizedBox(height: 4),
                   Text(
                     '本月已织入 $totalInMonth 条安排',
-                    style: const TextStyle(color: AppColors.muted),
+                    style: const TextStyle(
+                      fontSize: 10.5,
+                      height: 13 / 10.5,
+                      color: AppColors.muted,
+                    ),
                   ),
                 ],
               ),
             ),
           ],
         ),
-        const SizedBox(height: 14),
+        const SizedBox(height: 10),
         WeavingCard(
+          color: AppColors.surfaceLowest,
           child: Column(
             children: [
               Row(
@@ -720,22 +626,26 @@ class _TimelineCalendarOverview extends StatelessWidget {
                     child: Text(
                       timelineMonthTitle(activeMonth),
                       style: const TextStyle(
-                        fontSize: 20,
-                        fontWeight: FontWeight.w900,
+                        fontFamily: 'PlusJakartaSans',
+                        fontSize: 21,
+                        height: 27 / 21,
+                        fontWeight: FontWeight.w800,
                         color: AppColors.primary,
                       ),
                     ),
                   ),
-                  _CalendarArrowButton(label: '<', onTap: onPrevMonth),
-                  const SizedBox(width: 10),
-                  _CalendarArrowButton(label: '>', onTap: onNextMonth),
+                  _CalendarArrowButton(label: '‹', onTap: onPrevMonth),
+                  const SizedBox(width: 12),
+                  _CalendarArrowButton(label: '›', onTap: onNextMonth),
                 ],
               ),
-              const SizedBox(height: 14),
+              const SizedBox(height: 10),
               Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: const ['日', '一', '二', '三', '四', '五', '六']
                     .map(
-                      (label) => Expanded(
+                      (label) => SizedBox(
+                        width: 44,
                         child: Center(
                           child: Text(
                             label,
@@ -756,8 +666,9 @@ class _TimelineCalendarOverview extends StatelessWidget {
                   .slices(7)
                   .map(
                     (row) => Padding(
-                      padding: const EdgeInsets.only(bottom: 8),
+                      padding: const EdgeInsets.only(bottom: 10),
                       child: Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: row.map((date) {
                           final selected =
                               date != null &&
@@ -776,66 +687,62 @@ class _TimelineCalendarOverview extends StatelessWidget {
                                         ?.items
                                         .length ??
                                     0;
-                          return Expanded(
-                            child: Padding(
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 2,
+                          return _TimelinePressSurface(
+                            onTap: date == null
+                                ? null
+                                : () => onDateSelected(date),
+                            interactionStyle: WeavingInteractionStyle.iconGlow,
+                            borderRadius: 12,
+                            child: Container(
+                              width: 44,
+                              height: 76,
+                              decoration: BoxDecoration(
+                                color: selected
+                                    ? AppColors.primary
+                                    : count > 0
+                                    ? AppColors.surfaceWarm.withValues(
+                                        alpha: 0.74,
+                                      )
+                                    : Colors.transparent,
+                                borderRadius: BorderRadius.circular(12),
                               ),
-                              child: GestureDetector(
-                                onTap: date == null
-                                    ? null
-                                    : () => onDateSelected(date),
-                                child: Container(
-                                  height: 74,
-                                  decoration: BoxDecoration(
-                                    color: selected
-                                        ? AppColors.primary
-                                        : count > 0
-                                        ? Colors.white.withValues(alpha: 0.72)
-                                        : Colors.transparent,
-                                    borderRadius: BorderRadius.circular(18),
-                                  ),
-                                  child: date == null
-                                      ? null
-                                      : Column(
-                                          mainAxisAlignment:
-                                              MainAxisAlignment.center,
-                                          children: [
-                                            Text(
-                                              '${date.day}',
-                                              style: TextStyle(
-                                                fontSize: 18,
-                                                fontWeight: FontWeight.w900,
-                                                color: selected
-                                                    ? Colors.white
-                                                    : AppColors.text,
-                                              ),
-                                            ),
-                                            if (count > 0) ...[
-                                              const SizedBox(height: 6),
-                                              Wrap(
-                                                spacing: 2,
-                                                children: List.generate(
-                                                  count.clamp(0, 4),
-                                                  (_) => Container(
-                                                    width: 6,
-                                                    height: 6,
-                                                    decoration:
-                                                        const BoxDecoration(
-                                                          color: Color(
-                                                            0xFFF4C84A,
-                                                          ),
-                                                          shape:
-                                                              BoxShape.circle,
-                                                        ),
-                                                  ),
+                              child: date == null
+                                  ? null
+                                  : Column(
+                                      mainAxisAlignment:
+                                          MainAxisAlignment.center,
+                                      children: [
+                                        Text(
+                                          '${date.day}',
+                                          style: TextStyle(
+                                            fontFamily: 'PlusJakartaSans',
+                                            fontSize: 18,
+                                            height: 24 / 18,
+                                            fontWeight: FontWeight.w800,
+                                            color: selected
+                                                ? Colors.white
+                                                : AppColors.text,
+                                          ),
+                                        ),
+                                        if (count > 0) ...[
+                                          const SizedBox(height: 5),
+                                          Wrap(
+                                            spacing: 2,
+                                            children: List.generate(
+                                              count.clamp(0, 4),
+                                              (_) => Container(
+                                                width: 6,
+                                                height: 6,
+                                                decoration: const BoxDecoration(
+                                                  color: Color(0xFFF4C84A),
+                                                  shape: BoxShape.circle,
                                                 ),
                                               ),
-                                            ],
-                                          ],
-                                        ),
-                                ),
-                              ),
+                                            ),
+                                          ),
+                                        ],
+                                      ],
+                                    ),
                             ),
                           );
                         }).toList(),
@@ -845,16 +752,19 @@ class _TimelineCalendarOverview extends StatelessWidget {
             ],
           ),
         ),
-        const SizedBox(height: 14),
+        const SizedBox(height: 10),
         WeavingCard(
+          color: AppColors.surfaceLowest.withValues(alpha: 0.9),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text(
                 timelineDayTitle(selectedDate),
                 style: const TextStyle(
-                  fontSize: 20,
-                  fontWeight: FontWeight.w900,
+                  fontFamily: 'PlusJakartaSans',
+                  fontSize: 21,
+                  height: 27 / 21,
+                  fontWeight: FontWeight.w800,
                   color: AppColors.primary,
                 ),
               ),
@@ -868,14 +778,15 @@ class _TimelineCalendarOverview extends StatelessWidget {
                 ...selectedBucket.items.map(
                   (event) => Padding(
                     padding: const EdgeInsets.only(bottom: 10),
-                    child: InkWell(
-                      borderRadius: BorderRadius.circular(16),
+                    child: _TimelinePressSurface(
+                      borderRadius: 12,
+                      interactionStyle: WeavingInteractionStyle.timelineSlide,
                       onTap: () => onItemTap(event),
                       child: Container(
                         padding: const EdgeInsets.all(12),
                         decoration: BoxDecoration(
-                          color: Colors.white.withValues(alpha: 0.72),
-                          borderRadius: BorderRadius.circular(16),
+                          color: Colors.white.withValues(alpha: 0.52),
+                          borderRadius: BorderRadius.circular(12),
                         ),
                         child: Row(
                           children: [
@@ -885,18 +796,20 @@ class _TimelineCalendarOverview extends StatelessWidget {
                                 children: [
                                   Text(
                                     event.title,
-                                    style: const TextStyle(
-                                      fontWeight: FontWeight.w800,
-                                      color: AppColors.text,
-                                    ),
+                                    style: Theme.of(context).textTheme.bodyLarge
+                                        ?.copyWith(
+                                          fontWeight: FontWeight.w700,
+                                          color: AppColors.text,
+                                        ),
                                   ),
-                                  const SizedBox(height: 4),
+                                  const SizedBox(height: 2),
                                   Text(
                                     '${eventDisplayTimeLabel(event)} · '
                                     '${(event.location ?? '').trim().isEmpty ? '地点待补充' : event.location!}',
-                                    style: const TextStyle(
-                                      color: AppColors.muted,
-                                    ),
+                                    style: Theme.of(context)
+                                        .textTheme
+                                        .labelSmall
+                                        ?.copyWith(color: AppColors.muted),
                                   ),
                                 ],
                               ),
@@ -928,9 +841,10 @@ class _CalendarArrowButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return InkWell(
+    return _TimelinePressSurface(
       onTap: onTap,
-      borderRadius: BorderRadius.circular(99),
+      borderRadius: 99,
+      interactionStyle: WeavingInteractionStyle.iconGlow,
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
         decoration: BoxDecoration(
@@ -941,6 +855,37 @@ class _CalendarArrowButton extends StatelessWidget {
           label,
           style: const TextStyle(
             fontWeight: FontWeight.w800,
+            color: AppColors.primary,
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _TimelineIconBubble extends StatelessWidget {
+  const _TimelineIconBubble({required this.onTap});
+
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      color: AppColors.surfaceLowest,
+      shape: CircleBorder(
+        side: BorderSide(
+          color: Colors.white.withValues(alpha: 0.64),
+          width: 0.8,
+        ),
+      ),
+      child: InkWell(
+        customBorder: const CircleBorder(),
+        onTap: onTap,
+        child: const SizedBox.square(
+          dimension: 44,
+          child: Icon(
+            Icons.arrow_back_rounded,
+            size: 20,
             color: AppColors.primary,
           ),
         ),
@@ -976,6 +921,7 @@ class _TimelineDetailOverlay extends StatefulWidget {
 
 class _TimelineDetailOverlayState extends State<_TimelineDetailOverlay> {
   bool _editing = false;
+  final ScrollController _scrollController = ScrollController();
   late final TextEditingController _titleController;
   late final TextEditingController _timeController;
   late final TextEditingController _locationController;
@@ -1010,6 +956,7 @@ class _TimelineDetailOverlayState extends State<_TimelineDetailOverlay> {
 
   @override
   void dispose() {
+    _scrollController.dispose();
     _titleController.dispose();
     _timeController.dispose();
     _locationController.dispose();
@@ -1022,43 +969,47 @@ class _TimelineDetailOverlayState extends State<_TimelineDetailOverlay> {
     final event = widget.item;
     return Positioned.fill(
       child: Material(
-        color: AppColors.background.withValues(alpha: 0.95),
+        color: AppColors.background.withValues(alpha: 0.96),
         child: Center(
           child: Padding(
             padding: const EdgeInsets.all(16),
             child: ConstrainedBox(
-              constraints: const BoxConstraints(maxWidth: 620, maxHeight: 720),
+              constraints: const BoxConstraints(maxHeight: 720),
               child: WeavingCard(
+                color: AppColors.surfaceHigh.withValues(alpha: 0.96),
                 child: SingleChildScrollView(
+                  controller: _scrollController,
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       InfoChip(
                         label: _editing ? '日程详情 · 编辑中' : '日程详情',
                         icon: Icons.timeline_rounded,
+                        backgroundColor: AppColors.mint,
                       ),
-                      const SizedBox(height: 12),
+                      const SizedBox(height: 10),
                       Text(
                         _editing ? '校对这条日程' : event.title,
                         style: const TextStyle(
-                          fontSize: 24,
-                          fontWeight: FontWeight.w900,
+                          fontFamily: 'PlusJakartaSans',
+                          fontSize: 32,
+                          height: 38 / 32,
+                          fontWeight: FontWeight.w800,
                           color: AppColors.primary,
                         ),
                       ),
-                      const SizedBox(height: 8),
+                      const SizedBox(height: 10),
                       Text(
                         _editing
                             ? '修改后的内容会直接写回时间线。'
                             : ((event.description ?? '').trim().isEmpty
                                   ? '这条事项已经沉淀到你的专属时间线中。'
                                   : event.description!),
-                        style: const TextStyle(
-                          color: AppColors.muted,
-                          height: 1.45,
-                        ),
+                        style: Theme.of(
+                          context,
+                        ).textTheme.bodyLarge?.copyWith(color: AppColors.muted),
                       ),
-                      const SizedBox(height: 14),
+                      const SizedBox(height: 10),
                       if (_editing) ...[
                         _DetailEditField(
                           label: '标题',
@@ -1127,7 +1078,7 @@ class _TimelineDetailOverlayState extends State<_TimelineDetailOverlay> {
                         ),
                         const SizedBox(height: 10),
                         _DetailRow(
-                          icon: Icons.file_open_rounded,
+                          icon: Icons.timeline_rounded,
                           label: '来源',
                           value: event.source.label.trim().isEmpty
                               ? '校园通知导入'
@@ -1142,7 +1093,7 @@ class _TimelineDetailOverlayState extends State<_TimelineDetailOverlay> {
                               : event.status,
                         ),
                       ],
-                      const SizedBox(height: 14),
+                      const SizedBox(height: 10),
                       Row(
                         children: [
                           Expanded(
@@ -1150,8 +1101,17 @@ class _TimelineDetailOverlayState extends State<_TimelineDetailOverlay> {
                               icon: Icons.edit_rounded,
                               title: '编辑',
                               summary: '校对字段',
-                              color: AppColors.surfaceWarm,
-                              onTap: () => setState(() => _editing = true),
+                              color: AppColors.surfaceLowest,
+                              onTap: () {
+                                setState(() => _editing = true);
+                                WidgetsBinding.instance.addPostFrameCallback((
+                                  _,
+                                ) {
+                                  if (_scrollController.hasClients) {
+                                    _scrollController.jumpTo(0);
+                                  }
+                                });
+                              },
                             ),
                           ),
                           const SizedBox(width: 10),
@@ -1224,11 +1184,19 @@ class _TimelineDetailOverlayState extends State<_TimelineDetailOverlay> {
                           ),
                         ],
                       ),
-                      const SizedBox(height: 14),
+                      const SizedBox(height: 10),
                       SizedBox(
                         width: double.infinity,
                         child: FilledButton(
                           onPressed: widget.onDismiss,
+                          style: FilledButton.styleFrom(
+                            minimumSize: const Size.fromHeight(50),
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 20,
+                              vertical: 10,
+                            ),
+                            shape: const StadiumBorder(),
+                          ),
                           child: const Text('关闭详情'),
                         ),
                       ),
@@ -1244,17 +1212,12 @@ class _TimelineDetailOverlayState extends State<_TimelineDetailOverlay> {
   }
 
   EventItem _buildEditedEvent(EventItem original) {
-    final title = _titleController.text.trim();
-    final time = _timeController.text.trim();
-    final location = _locationController.text.trim();
-    final summary = _summaryController.text.trim();
-    return original.copyWith(
-      title: title.isEmpty ? original.title : title,
-      startTimeIso: time.isEmpty ? null : time,
-      location: location.isEmpty ? null : location,
-      description: summary.isEmpty ? null : summary,
-      source: original.source,
-      updatedAtIso: DateTime.now().toIso8601String(),
+    return buildEditedTimelineEvent(
+      original: original,
+      title: _titleController.text,
+      time: _timeController.text,
+      location: _locationController.text,
+      summary: _summaryController.text,
     );
   }
 
@@ -1273,7 +1236,7 @@ class _TimelineDetailOverlayState extends State<_TimelineDetailOverlay> {
   }
 }
 
-class _DetailEditField extends StatelessWidget {
+class _DetailEditField extends StatefulWidget {
   const _DetailEditField({
     required this.label,
     required this.controller,
@@ -1285,19 +1248,59 @@ class _DetailEditField extends StatelessWidget {
   final int maxLines;
 
   @override
+  State<_DetailEditField> createState() => _DetailEditFieldState();
+}
+
+class _DetailEditFieldState extends State<_DetailEditField> {
+  final FocusNode _focusNode = FocusNode();
+
+  @override
+  void initState() {
+    super.initState();
+    _focusNode.addListener(_handleFocusChanged);
+  }
+
+  void _handleFocusChanged() => setState(() {});
+
+  @override
+  void dispose() {
+    _focusNode.removeListener(_handleFocusChanged);
+    _focusNode.dispose();
+    super.dispose();
+  }
+
+  @override
   Widget build(BuildContext context) {
     return Padding(
       padding: const EdgeInsets.only(bottom: 10),
       child: TextField(
-        controller: controller,
-        maxLines: maxLines,
+        controller: widget.controller,
+        focusNode: _focusNode,
+        cursorColor: AppColors.primary,
+        style: Theme.of(context).textTheme.bodyLarge,
+        maxLines: widget.maxLines,
         decoration: InputDecoration(
-          labelText: label,
+          labelText: widget.label,
+          labelStyle: TextStyle(
+            color: _focusNode.hasFocus ? AppColors.primary : AppColors.muted,
+          ),
           filled: true,
-          fillColor: Colors.white.withValues(alpha: 0.72),
+          fillColor: Colors.white.withValues(
+            alpha: _focusNode.hasFocus ? 0.46 : 0.28,
+          ),
           border: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(16),
-            borderSide: const BorderSide(color: AppColors.border),
+            borderRadius: BorderRadius.circular(12),
+            borderSide: BorderSide(color: Colors.white.withValues(alpha: 0.4)),
+          ),
+          enabledBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(12),
+            borderSide: BorderSide(color: Colors.white.withValues(alpha: 0.4)),
+          ),
+          focusedBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(12),
+            borderSide: BorderSide(
+              color: AppColors.primary.withValues(alpha: 0.6),
+            ),
           ),
         ),
       ),
@@ -1322,14 +1325,15 @@ class _DetailActionButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return InkWell(
+    return _TimelinePressSurface(
       onTap: onTap,
-      borderRadius: BorderRadius.circular(18),
+      borderRadius: 20,
+      interactionStyle: WeavingInteractionStyle.iconGlow,
       child: Container(
         padding: const EdgeInsets.all(14),
         decoration: BoxDecoration(
           color: color,
-          borderRadius: BorderRadius.circular(18),
+          borderRadius: BorderRadius.circular(20),
         ),
         child: Row(
           children: [
@@ -1337,10 +1341,10 @@ class _DetailActionButton extends StatelessWidget {
               width: 38,
               height: 38,
               decoration: BoxDecoration(
-                color: Colors.white.withValues(alpha: 0.55),
+                color: Colors.white.withValues(alpha: 0.52),
                 shape: BoxShape.circle,
               ),
-              child: Icon(icon, color: AppColors.primary, size: 20),
+              child: Icon(icon, color: AppColors.primary, size: 19),
             ),
             const SizedBox(width: 10),
             Expanded(
@@ -1349,8 +1353,8 @@ class _DetailActionButton extends StatelessWidget {
                 children: [
                   Text(
                     title,
-                    style: const TextStyle(
-                      fontWeight: FontWeight.w800,
+                    style: Theme.of(context).textTheme.labelMedium?.copyWith(
+                      fontWeight: FontWeight.w700,
                       color: AppColors.primary,
                     ),
                   ),
@@ -1359,10 +1363,9 @@ class _DetailActionButton extends StatelessWidget {
                     summary,
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(
-                      fontSize: 12,
-                      color: AppColors.muted,
-                    ),
+                    style: Theme.of(
+                      context,
+                    ).textTheme.labelSmall?.copyWith(color: AppColors.muted),
                   ),
                 ],
               ),
@@ -1389,10 +1392,10 @@ class _DetailRow extends StatelessWidget {
   Widget build(BuildContext context) {
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.all(14),
+      padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: Colors.white.withValues(alpha: 0.68),
-        borderRadius: BorderRadius.circular(16),
+        color: Colors.white.withValues(alpha: 0.5),
+        borderRadius: BorderRadius.circular(12),
       ),
       child: Row(
         children: [
@@ -1412,20 +1415,88 @@ class _DetailRow extends StatelessWidget {
               children: [
                 Text(
                   label,
-                  style: const TextStyle(fontSize: 12, color: AppColors.muted),
+                  style: Theme.of(
+                    context,
+                  ).textTheme.labelMedium?.copyWith(color: AppColors.muted),
                 ),
                 const SizedBox(height: 2),
-                Text(
-                  value,
-                  style: const TextStyle(
-                    fontWeight: FontWeight.w700,
-                    color: AppColors.text,
-                  ),
-                ),
+                Text(value, style: Theme.of(context).textTheme.bodyLarge),
               ],
             ),
           ),
         ],
+      ),
+    );
+  }
+}
+
+class _TimelinePressSurface extends StatefulWidget {
+  const _TimelinePressSurface({
+    required this.child,
+    required this.onTap,
+    required this.interactionStyle,
+    required this.borderRadius,
+  });
+
+  final Widget child;
+  final VoidCallback? onTap;
+  final WeavingInteractionStyle interactionStyle;
+  final double borderRadius;
+
+  @override
+  State<_TimelinePressSurface> createState() => _TimelinePressSurfaceState();
+}
+
+class _TimelinePressSurfaceState extends State<_TimelinePressSurface> {
+  bool _pressed = false;
+
+  @override
+  Widget build(BuildContext context) {
+    final pressedScale = switch (widget.interactionStyle) {
+      WeavingInteractionStyle.primaryPress => 0.965,
+      WeavingInteractionStyle.iconGlow => 0.92,
+      _ => 0.985,
+    };
+    final pressedOffsetY = switch (widget.interactionStyle) {
+      WeavingInteractionStyle.timelineSlide => 6.0,
+      WeavingInteractionStyle.cardLift => 2.0,
+      _ => 0.0,
+    };
+    final pressedOpacity =
+        widget.interactionStyle == WeavingInteractionStyle.iconGlow
+        ? 0.88
+        : 1.0;
+
+    return TweenAnimationBuilder<double>(
+      tween: Tween(end: widget.onTap != null && _pressed ? 1 : 0),
+      duration: const Duration(milliseconds: 120),
+      curve: Curves.easeOutCubic,
+      builder: (context, progress, child) => Transform.translate(
+        offset: Offset(0, pressedOffsetY * progress),
+        child: Transform.scale(
+          scale: 1 - ((1 - pressedScale) * progress),
+          child: Opacity(
+            opacity: 1 - ((1 - pressedOpacity) * progress),
+            child: child,
+          ),
+        ),
+      ),
+      child: Semantics(
+        button: widget.onTap != null,
+        child: Material(
+          color: Colors.transparent,
+          borderRadius: BorderRadius.circular(widget.borderRadius),
+          clipBehavior: Clip.antiAlias,
+          child: InkWell(
+            onTap: widget.onTap,
+            onHighlightChanged: widget.onTap == null
+                ? null
+                : (pressed) => setState(() => _pressed = pressed),
+            splashColor: Colors.transparent,
+            highlightColor: Colors.transparent,
+            child: widget.child,
+          ),
+        ),
       ),
     );
   }

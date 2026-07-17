@@ -32,18 +32,28 @@ import 'services/timeline_export_service.dart';
 import 'services/tts_service.dart';
 import 'utils/date_utils.dart';
 import 'utils/validators.dart';
+import 'widgets/app_overlays.dart';
 
 class AppColors {
   static const primary = Color(0xFF003528);
+  static const onPrimary = Color(0xFFFFFFFF);
+  static const primaryContainer = Color(0xFF0B4D3D);
+  static const secondary = Color(0xFF9E3F42);
   static const primarySoft = Color(0xFFB2EFD9);
+  static const mint = Color(0xFFCCF2E6);
   static const coral = Color(0xFFFFE0DC);
   static const gold = Color(0xFFFFEDC0);
   static const background = Color(0xFFFFF8F2);
   static const surface = Color(0xFFFFFCF8);
+  static const surfaceLowest = Color(0xFFFFFFFF);
+  static const surfaceLow = Color(0xFFFFF2DF);
   static const surfaceWarm = Color(0xFFFFEBCB);
+  static const surfaceHigh = Color(0xFFFFE5B6);
+  static const surfaceHighest = Color(0xFFFFDEA1);
   static const text = Color(0xFF261900);
-  static const muted = Color(0xFF5B6762);
+  static const muted = Color(0xFF404945);
   static const border = Color(0xFFF0E4D6);
+  static const glass = Color(0xCCFFFCF8);
 }
 
 class TimeWeaverApp extends StatefulWidget {
@@ -75,10 +85,20 @@ class _TimeWeaverAppState extends State<TimeWeaverApp> {
       debugShowCheckedModeBanner: false,
       theme: ThemeData(
         useMaterial3: true,
-        colorScheme: ColorScheme.fromSeed(
-          seedColor: AppColors.primary,
-          brightness: Brightness.light,
+        colorScheme: const ColorScheme.light(
+          primary: AppColors.primary,
+          onPrimary: AppColors.onPrimary,
+          primaryContainer: AppColors.primaryContainer,
+          secondary: Color(0xFF9E3F42),
+          secondaryContainer: Color(0xFFFE8989),
+          tertiary: Color(0xFF8A6500),
+          tertiaryContainer: Color(0xFFB67A00),
+          error: Color(0xFFBA1A1A),
           surface: AppColors.surface,
+          onSurface: AppColors.text,
+          onSurfaceVariant: AppColors.muted,
+          outline: Color(0xFF707975),
+          outlineVariant: Color(0xFFBFC9C3),
         ),
         scaffoldBackgroundColor: AppColors.background,
         fontFamily: 'Manrope',
@@ -87,34 +107,83 @@ class _TimeWeaverAppState extends State<TimeWeaverApp> {
             fontFamily: 'PlusJakartaSans',
             fontFamilyFallback: ['NotoSansSC'],
             fontSize: 32,
+            height: 38 / 32,
+            letterSpacing: -0.576,
             fontWeight: FontWeight.w800,
+            color: AppColors.text,
+          ),
+          headlineLarge: TextStyle(
+            fontFamily: 'PlusJakartaSans',
+            fontFamilyFallback: ['NotoSansSC'],
+            fontSize: 25,
+            height: 31 / 25,
+            fontWeight: FontWeight.w700,
             color: AppColors.primary,
           ),
           headlineMedium: TextStyle(
             fontFamily: 'PlusJakartaSans',
             fontFamilyFallback: ['NotoSansSC'],
-            fontSize: 22,
+            fontSize: 18,
+            height: 24 / 18,
+            fontWeight: FontWeight.w700,
+            color: AppColors.primary,
+          ),
+          headlineSmall: TextStyle(
+            fontFamily: 'PlusJakartaSans',
+            fontFamilyFallback: ['NotoSansSC'],
+            fontSize: 21,
+            height: 27 / 21,
             fontWeight: FontWeight.w800,
             color: AppColors.primary,
           ),
           titleMedium: TextStyle(
             fontFamily: 'PlusJakartaSans',
             fontFamilyFallback: ['NotoSansSC'],
-            fontSize: 16,
+            fontSize: 14,
+            height: 20 / 14,
             fontWeight: FontWeight.w700,
+            color: AppColors.text,
+          ),
+          bodyLarge: TextStyle(
+            fontFamily: 'Manrope',
+            fontFamilyFallback: ['NotoSansSC'],
+            fontSize: 14,
+            height: 20 / 14,
+            fontWeight: FontWeight.w500,
             color: AppColors.text,
           ),
           bodyMedium: TextStyle(
             fontFamily: 'Manrope',
             fontFamilyFallback: ['NotoSansSC'],
-            fontSize: 13,
+            fontSize: 12.5,
+            height: 18 / 12.5,
             color: AppColors.text,
           ),
           labelLarge: TextStyle(
             fontFamily: 'Manrope',
             fontFamilyFallback: ['NotoSansSC'],
-            fontSize: 13,
+            fontSize: 11.5,
+            height: 16 / 11.5,
             fontWeight: FontWeight.w600,
+            letterSpacing: 0.08,
+            color: AppColors.text,
+          ),
+          labelMedium: TextStyle(
+            fontFamily: 'Manrope',
+            fontFamilyFallback: ['NotoSansSC'],
+            fontSize: 11.5,
+            height: 16 / 11.5,
+            fontWeight: FontWeight.w600,
+            letterSpacing: 0.08,
+            color: AppColors.text,
+          ),
+          labelSmall: TextStyle(
+            fontFamily: 'Manrope',
+            fontFamilyFallback: ['NotoSansSC'],
+            fontSize: 10.5,
+            height: 13 / 10.5,
+            fontWeight: FontWeight.w500,
+            letterSpacing: 0.32,
             color: AppColors.text,
           ),
         ),
@@ -140,45 +209,67 @@ class TimeWeaverShell extends StatelessWidget {
           ProfilePage(controller: controller),
         ];
 
-        return Scaffold(
-          body: SafeArea(
-            bottom: false,
-            child: controller.initializing
-                ? const Center(child: CircularProgressIndicator())
-                : controller.currentUser == null
-                ? LoginPage(
-                    isSubmitting: controller.loginSubmitting,
-                    message: controller.loginMessage,
-                    onLogin: controller.loginAccount,
-                    onRegister: controller.registerAccount,
-                  )
-                : IndexedStack(index: controller.currentTab, children: pages),
-          ),
-          bottomNavigationBar: controller.currentUser == null
-              ? null
-              : NavigationBar(
-                  selectedIndex: controller.currentTab,
-                  backgroundColor: Colors.white,
-                  indicatorColor: AppColors.primarySoft,
-                  onDestinationSelected: controller.setTab,
-                  destinations: const [
-                    NavigationDestination(
-                      icon: Icon(Icons.home_outlined),
-                      selectedIcon: Icon(Icons.home_rounded),
-                      label: '首页',
+        return Stack(
+          children: [
+            Scaffold(
+              body: SafeArea(
+                bottom: false,
+                child: controller.initializing
+                    ? const Center(child: CircularProgressIndicator())
+                    : controller.currentUser == null
+                    ? LoginPage(
+                        isSubmitting: controller.loginSubmitting,
+                        message: controller.loginMessage,
+                        onLogin: controller.loginAccount,
+                        onRegister: controller.registerAccount,
+                      )
+                    : IndexedStack(
+                        index: controller.currentTab,
+                        children: pages,
+                      ),
+              ),
+              bottomNavigationBar: controller.currentUser == null
+                  ? null
+                  : NavigationBar(
+                      selectedIndex: controller.currentTab,
+                      backgroundColor: Colors.white,
+                      indicatorColor: AppColors.primarySoft.withValues(
+                        alpha: 0.60,
+                      ),
+                      onDestinationSelected: controller.setTab,
+                      destinations: const [
+                        NavigationDestination(
+                          icon: Icon(Icons.home_rounded),
+                          label: '首页',
+                        ),
+                        NavigationDestination(
+                          icon: Icon(Icons.schedule_rounded),
+                          label: '时间线',
+                        ),
+                        NavigationDestination(
+                          icon: Icon(Icons.person_rounded),
+                          label: '我的',
+                        ),
+                      ],
                     ),
-                    NavigationDestination(
-                      icon: Icon(Icons.timeline_outlined),
-                      selectedIcon: Icon(Icons.timeline_rounded),
-                      label: '时间线',
-                    ),
-                    NavigationDestination(
-                      icon: Icon(Icons.person_outline_rounded),
-                      selectedIcon: Icon(Icons.person_rounded),
-                      label: '我的',
-                    ),
-                  ],
-                ),
+            ),
+            if (controller.currentUser != null) ...[
+              AppLoadingOverlay(
+                isVisible: controller.isBusy,
+                currentStage: controller.loadingStage,
+                onCancel: controller.cancelParsing,
+              ),
+              AppErrorOverlay(
+                errorMessage: controller.errorMessage,
+                showRetry: controller.canRetryLastAction,
+                onRetry: controller.retryLastAction,
+                onDismiss: controller.dismissError,
+              ),
+              TimelineTransferOverlay(
+                isVisible: controller.showTimelineTransfer,
+              ),
+            ],
+          ],
         );
       },
     );
@@ -211,12 +302,21 @@ class AppController extends ChangeNotifier {
   final ShareReceiveService shareReceiveService;
   final TimelineExportService timelineExportService;
   final ImagePicker _imagePicker = ImagePicker();
+  Timer? _voiceElapsedTimer;
+  DateTime? _voiceStartedAt;
+  int _parseOperationId = 0;
+  String? _lastParseRawText;
+  String? _lastParseImagePath;
+  SourceType? _lastParseSourceType;
+  bool _errorCanRetry = false;
 
   bool initializing = true;
   bool isBusy = false;
+  int loadingStage = 0;
+  bool showTimelineTransfer = false;
   bool isVoiceListening = false;
   int currentTab = 0;
-  String statusMessage = '等待导入校园通知';
+  String statusMessage = '';
   String? errorMessage;
   AccountUser? currentUser;
   String loginMessage = '';
@@ -254,13 +354,19 @@ class AppController extends ChangeNotifier {
   int get scheduledReminderCount =>
       reminderService.upcomingReminderCount(confirmedEvents);
 
+  Duration get voiceRecordingDuration => _voiceStartedAt == null
+      ? Duration.zero
+      : DateTime.now().difference(_voiceStartedAt!);
+
   String get currentAccountLabel => currentUser?.account ?? '';
+
+  bool get canRetryLastAction =>
+      _errorCanRetry && _lastParseSourceType != null && !isBusy;
 
   Future<void> initialize() async {
     initializing = true;
     notifyListeners();
     await accountRepository.initialize();
-    await accountRepository.ensureBuiltInTestAccount();
     await reminderService.initialize();
     await ttsService.initialize();
     currentUser = await accountSessionService.loadCurrentUser(
@@ -289,8 +395,9 @@ class AppController extends ChangeNotifier {
 
   @override
   void dispose() {
+    _voiceElapsedTimer?.cancel();
     unawaited(shareReceiveService.dispose());
-    unawaited(speechService.stop());
+    unawaited(speechService.dispose());
     unawaited(ttsService.stop());
     super.dispose();
   }
@@ -331,11 +438,18 @@ class AppController extends ChangeNotifier {
     final hasImage = imagePath != null && imagePath.trim().isNotEmpty;
     if (!hasText && !hasImage) {
       errorMessage = '先输入一段校园通知文本，再点击发送解析。';
+      _errorCanRetry = false;
       notifyListeners();
       return;
     }
 
+    final operationId = ++_parseOperationId;
+    _lastParseRawText = rawText;
+    _lastParseImagePath = imagePath;
+    _lastParseSourceType = sourceType;
+    _errorCanRetry = false;
     isBusy = true;
+    loadingStage = 0;
     errorMessage = null;
     statusMessage = '正在整理通知';
     notifyListeners();
@@ -346,31 +460,69 @@ class AppController extends ChangeNotifier {
         imagePath: imagePath,
         importedAtIso: DateTime.now().toIso8601String(),
       );
-      final notices = (await parserService.parseNotice(source: source))
+      if (operationId != _parseOperationId) return;
+      loadingStage = 1;
+      notifyListeners();
+      final outcome = await parserService.parseNotice(source: source);
+      if (operationId != _parseOperationId) return;
+      loadingStage = 2;
+      notifyListeners();
+      final notices = outcome.notices
           .map((item) => item.copyWith(ownerAccount: currentAccountLabel))
           .toList();
-      if (notices.isEmpty) {
-        errorMessage = '没有识别到可处理的校园事项';
+      if (outcome.action == NoticeAction.ttsFeedback) {
+        final speechText = outcome.speechText?.trim();
+        if (speechText == null || speechText.isEmpty) {
+          errorMessage = outcome.feedback ?? '接口没有返回可播报内容';
+          statusMessage = '语音反馈未生成';
+        } else {
+          statusMessage = speechText;
+          await _pushInboxMessage(
+            type: 'tts_feedback',
+            title: '语音反馈已生成',
+            summary: speechText,
+            status: '已处理',
+          );
+          await ttsService.speak(speechText);
+        }
+      } else if (outcome.action == NoticeAction.unknown || notices.isEmpty) {
+        errorMessage = outcome.feedback ?? '没有识别到可处理的校园事项';
+        _errorCanRetry = true;
+        statusMessage = '未生成待确认事项';
         await _pushInboxMessage(
           type: 'parse_feedback',
           title: '解析结果为空',
-          summary: '来源：${source.label}。没有识别到可处理的校园事项。',
+          summary: '来源：${source.label}。${errorMessage!}',
           status: '反馈',
         );
       } else {
         pendingNotices = [...notices, ...pendingNotices];
         await _saveScopedPendingNotices();
-        statusMessage = '已生成 ${notices.length} 条待确认事项';
+        final clarificationCount = notices
+            .where((notice) => notice.action == NoticeAction.clarification)
+            .length;
+        final navigationCount = notices
+            .where((notice) => notice.action == NoticeAction.navigate)
+            .length;
+        statusMessage = clarificationCount > 0
+            ? preference.muteLowConfidence
+                  ? '低置信度结果已保留，请补充信息后再确认'
+                  : '已生成 ${notices.length} 条结果，其中 $clarificationCount 条需要补充信息'
+            : navigationCount > 0
+            ? '已识别校园地点，请确认后打开地图'
+            : '已生成 ${notices.length} 条待确认事项';
         await _pushInboxMessage(
-          type: 'parse_result',
-          title: '已生成待确认事项',
-          summary: '来源：${source.label}，共生成 ${notices.length} 条待确认事项。',
-          status: '待处理',
+          type: clarificationCount > 0 ? 'clarification' : 'parse_result',
+          title: clarificationCount > 0 ? '解析结果需要补充' : '已生成待确认事项',
+          summary: '来源：${source.label}。$statusMessage',
+          status: clarificationCount > 0 ? '待补充' : '待处理',
         );
         await ttsService.speak(statusMessage);
       }
     } catch (error) {
+      if (operationId != _parseOperationId) return;
       errorMessage = error.toString().replaceFirst('Exception: ', '');
+      _errorCanRetry = true;
       statusMessage = '解析未完成';
       await _pushInboxMessage(
         type: 'parse_feedback',
@@ -380,12 +532,46 @@ class AppController extends ChangeNotifier {
       );
       await ttsService.speak(errorMessage!);
     } finally {
-      isBusy = false;
-      notifyListeners();
+      if (operationId == _parseOperationId) {
+        isBusy = false;
+        loadingStage = 0;
+        notifyListeners();
+      }
     }
   }
 
-  Future<String?> confirmNotice(ParsedNotice notice) async {
+  void cancelParsing() {
+    if (!isBusy) return;
+    _parseOperationId++;
+    isBusy = false;
+    loadingStage = 0;
+    statusMessage = '识别已取消';
+    notifyListeners();
+  }
+
+  Future<void> retryLastAction() async {
+    final sourceType = _lastParseSourceType;
+    if (sourceType == null || isBusy) return;
+    final rawText = _lastParseRawText ?? '';
+    final imagePath = _lastParseImagePath;
+    dismissError(notify: false);
+    await parseInput(
+      rawText: rawText,
+      imagePath: imagePath,
+      sourceType: sourceType,
+    );
+  }
+
+  void dismissError({bool notify = true}) {
+    errorMessage = null;
+    _errorCanRetry = false;
+    if (notify) notifyListeners();
+  }
+
+  Future<String?> confirmNotice(
+    ParsedNotice notice, {
+    bool navigateToTimeline = true,
+  }) async {
     final blocker = Validators.confirmBlocker(notice);
     if (blocker != null) {
       errorMessage = blocker;
@@ -397,6 +583,50 @@ class AppController extends ChangeNotifier {
       );
       notifyListeners();
       return blocker;
+    }
+
+    if (notice.action == NoticeAction.navigate) {
+      if (!preference.autoMapLink) {
+        const message = '地点解析与地图联动已关闭，请先在偏好设置中开启';
+        errorMessage = message;
+        statusMessage = '地图导航未执行';
+        await _pushInboxMessage(
+          type: 'navigate_blocked',
+          title: '地图联动已关闭',
+          summary: notice.location ?? message,
+          status: '已拦截',
+        );
+        notifyListeners();
+        return message;
+      }
+      final opened = await integrationService.openLocation(notice.location!);
+      if (!opened) {
+        const message = '系统没有可用的地图应用';
+        errorMessage = message;
+        statusMessage = '地图导航未完成';
+        await _pushInboxMessage(
+          type: 'navigate_failed',
+          title: '导航失败',
+          summary: notice.location!,
+          status: '待处理',
+        );
+        notifyListeners();
+        return message;
+      }
+      pendingNotices = pendingNotices
+          .where((item) => item.id != notice.id)
+          .toList();
+      await _saveScopedPendingNotices();
+      errorMessage = null;
+      statusMessage = '已打开地点导航';
+      await _pushInboxMessage(
+        type: 'navigate',
+        title: '已打开地点导航',
+        summary: notice.location!,
+        status: '已处理',
+      );
+      notifyListeners();
+      return null;
     }
 
     await reminderService.requestPermissions();
@@ -435,8 +665,28 @@ class AppController extends ChangeNotifier {
         status: '反馈',
       );
     }
-    currentTab = 1;
+    if (navigateToTimeline) currentTab = 1;
     await ttsService.speak(errorMessage ?? '已加入时间线，并按你的提醒偏好排程');
+    notifyListeners();
+    return null;
+  }
+
+  Future<String?> confirmNoticeWithTransfer(ParsedNotice notice) async {
+    showTimelineTransfer = true;
+    notifyListeners();
+
+    final blocker = await confirmNotice(notice, navigateToTimeline: false);
+    if (blocker != null) {
+      showTimelineTransfer = false;
+      notifyListeners();
+      return blocker;
+    }
+
+    await Future<void>.delayed(const Duration(milliseconds: 420));
+    currentTab = 1;
+    notifyListeners();
+    await Future<void>.delayed(const Duration(milliseconds: 360));
+    showTimelineTransfer = false;
     notifyListeners();
     return null;
   }
@@ -479,6 +729,12 @@ class AppController extends ChangeNotifier {
         .toList();
     await _saveScopedEvents();
     statusMessage = '时间线事项已更新';
+    await _pushInboxMessage(
+      type: 'edited',
+      title: '日程已更新',
+      summary: '${updated.title} · ${updated.startTimeIso ?? '时间待补充'}',
+      status: '已处理',
+    );
     notifyListeners();
   }
 
@@ -487,41 +743,65 @@ class AppController extends ChangeNotifier {
     events = events.where((item) => item.id != event.id).toList();
     await _saveScopedEvents();
     statusMessage = '已从时间线删除';
+    await _pushInboxMessage(
+      type: 'deleted',
+      title: '日程已删除',
+      summary: event.title,
+      status: '已处理',
+    );
     notifyListeners();
   }
 
   Future<void> duplicateEvent(EventItem event) async {
     final nowIso = DateTime.now().toIso8601String();
-    final duplicateId =
-        '${event.id}-copy-${DateTime.now().millisecondsSinceEpoch}';
-    final duplicate = event.copyWith(
-      id: duplicateId,
+    final duplicate = ParsedNotice(
+      id: '${event.id}-copy-${DateTime.now().millisecondsSinceEpoch}',
       title: '${event.title} 副本',
+      eventType: event.eventType,
+      startTimeIso: event.startTimeIso,
+      deadlineIso: event.deadlineIso,
+      location: event.location,
+      description: event.description,
+      source: event.source,
+      confidence: event.confidence,
       createdAtIso: nowIso,
-      updatedAtIso: nowIso,
-      reminders: event.reminders
-          .map(
-            (reminder) => reminder.copyWith(
-              id: '${reminder.id}-copy',
-              eventId: duplicateId,
-              scheduledAtIso: null,
-              notificationId: null,
-            ),
-          )
-          .toList(),
+      reminderSuggestion: event.reminders.isEmpty
+          ? '提前${preference.reminderLeadDays}天 / 提前${preference.reminderLeadMinutes}分钟'
+          : event.reminders.map((reminder) => reminder.label).join(' / '),
+      status: '待确认',
       ownerAccount: currentAccountLabel,
     );
-    events = [duplicate, ...events];
-    await _saveScopedEvents();
-    statusMessage = '已复制事项';
+    pendingNotices = [duplicate, ...pendingNotices];
+    await _saveScopedPendingNotices();
+    currentTab = 0;
+    statusMessage = '已复制成待校验事项';
+    await _pushInboxMessage(
+      type: 'duplicated',
+      title: '已复制成新事项',
+      summary: duplicate.title,
+      status: '待校验',
+    );
     notifyListeners();
   }
 
   Future<void> startVoiceInput(ValueChanged<String> onText) async {
     if (isVoiceListening) return;
+    final microphoneGranted = await permissionService.requestMicrophone();
+    microphonePermissionReady = microphoneGranted;
+    if (!microphoneGranted) {
+      errorMessage = '麦克风权限未授权，无法进行真实语音识别';
+      statusMessage = '语音识别未启动';
+      notifyListeners();
+      return;
+    }
     isVoiceListening = true;
+    _voiceStartedAt = DateTime.now();
+    _voiceElapsedTimer?.cancel();
+    _voiceElapsedTimer = Timer.periodic(const Duration(seconds: 1), (_) {
+      if (isVoiceListening) notifyListeners();
+    });
     errorMessage = null;
-    statusMessage = '正在听写语音';
+    statusMessage = '已开始语音识别，再次点击可结束';
     var recognizedAnyText = false;
     notifyListeners();
     await speechService.listen(
@@ -535,6 +815,7 @@ class AppController extends ChangeNotifier {
         errorMessage = message;
         statusMessage = '语音识别未完成';
         isVoiceListening = false;
+        _stopVoiceElapsedTimer();
         unawaited(
           _pushInboxMessage(
             type: 'voice_feedback',
@@ -548,6 +829,7 @@ class AppController extends ChangeNotifier {
       onDone: () {
         if (!isVoiceListening) return;
         isVoiceListening = false;
+        _stopVoiceElapsedTimer();
         statusMessage = recognizedAnyText ? '语音已转写，可继续解析' : '语音识别未返回文本';
         notifyListeners();
       },
@@ -557,20 +839,53 @@ class AppController extends ChangeNotifier {
 
   Future<void> stopVoiceInput() async {
     if (!isVoiceListening) return;
-    await speechService.stop();
-    isVoiceListening = false;
-    statusMessage = '语音已转写，可继续解析';
+    final elapsed = voiceRecordingDuration;
+    if (elapsed < const Duration(milliseconds: 450)) {
+      await speechService.cancel();
+      isVoiceListening = false;
+      _stopVoiceElapsedTimer();
+      statusMessage = '语音时长太短，请点击语音按钮后再说话';
+      notifyListeners();
+      return;
+    }
+    statusMessage = '正在识别 ${elapsed.inSeconds} 秒的语音…';
     notifyListeners();
+    await speechService.stop();
+  }
+
+  void _stopVoiceElapsedTimer() {
+    _voiceElapsedTimer?.cancel();
+    _voiceElapsedTimer = null;
+    _voiceStartedAt = null;
   }
 
   Future<void> openMap(EventItem event) async {
+    if (!preference.autoMapLink) {
+      errorMessage = '地点解析与地图联动已关闭，请先在偏好设置中开启';
+      statusMessage = '地图导航未执行';
+      await _pushInboxMessage(
+        type: 'navigate_blocked',
+        title: '地图联动已关闭',
+        summary: event.location ?? event.title,
+        status: '已拦截',
+      );
+      notifyListeners();
+      return;
+    }
     final opened = await integrationService.openMap(event);
     if (!opened) {
-      errorMessage = '没有可打开的地点';
+      errorMessage = '事项没有地点，或系统没有可用的地图应用';
+      statusMessage = '地图导航未完成';
     } else {
       errorMessage = null;
-      statusMessage = '已打开地图';
+      statusMessage = '已打开地图导航';
     }
+    await _pushInboxMessage(
+      type: opened ? 'navigate' : 'navigate_failed',
+      title: opened ? '已打开地点导航' : '导航失败',
+      summary: event.location ?? event.title,
+      status: opened ? '已处理' : '待补充',
+    );
     notifyListeners();
   }
 
@@ -582,7 +897,7 @@ class AppController extends ChangeNotifier {
 
   Future<void> copyEvent(EventItem event) async {
     await integrationService.copyEvent(event);
-    statusMessage = '事项已复制到剪贴板';
+    statusMessage = '已复制日程摘要';
     notifyListeners();
   }
 
@@ -598,17 +913,21 @@ class AppController extends ChangeNotifier {
     statusMessage = '正在导出时间线 ${format.label}';
     notifyListeners();
     try {
-      final result = await timelineExportService.export(
-        confirmedEvents,
-        format,
-      );
+      final now = DateTime.now();
+      final exportEvents = confirmedEvents.where((event) {
+        final start = event.startTime;
+        return start != null &&
+            start.year == now.year &&
+            start.month == now.month;
+      }).toList();
+      final result = await timelineExportService.export(exportEvents, format);
       final opened = await timelineExportService.open(result.path);
       final record = ExportRecord(
         id: 'export-${DateTime.now().millisecondsSinceEpoch}',
         format: result.format.label,
         path: result.path,
         bytes: result.bytes,
-        eventCount: confirmedEvents.length,
+        eventCount: exportEvents.length,
         createdAtMillis: DateTime.now().millisecondsSinceEpoch,
         ownerAccount: currentAccountLabel,
       );
@@ -619,7 +938,7 @@ class AppController extends ChangeNotifier {
         type: 'export_record',
         title: '时间线已导出',
         summary:
-            '已导出 ${confirmedEvents.length} 条事项，格式：${result.format.label}，文件路径：${result.path}',
+            '已导出本月 ${exportEvents.length} 条事项，格式：${result.format.label}，文件路径：${result.path}',
         status: '已处理',
       );
       if (!opened) {
@@ -695,7 +1014,7 @@ class AppController extends ChangeNotifier {
     currentTab = 0;
     _loadVisibleDataForCurrentAccount();
     loginMessage = '已退出登录';
-    statusMessage = '等待导入校园通知';
+    statusMessage = '';
     notifyListeners();
   }
 
@@ -824,19 +1143,15 @@ class AppController extends ChangeNotifier {
   }
 
   List<EventItem> detectConflictsForNotice(ParsedNotice notice) {
+    if (notice.action != NoticeAction.createEvent) return const [];
     final referenceTime = _referenceTimeForNotice(notice);
     if (referenceTime == null) return const [];
     final conflicts = <EventItem>[];
     for (final event in confirmedEvents) {
       final eventTime = event.startTime ?? event.deadline;
       if (eventTime == null) continue;
-      if (eventTime.year != referenceTime.year ||
-          eventTime.month != referenceTime.month ||
-          eventTime.day != referenceTime.day) {
-        continue;
-      }
       final distance = eventTime.difference(referenceTime).inMinutes.abs();
-      if (distance <= 120) {
+      if (distance <= 60) {
         conflicts.add(event);
       }
     }
@@ -867,7 +1182,7 @@ class AppController extends ChangeNotifier {
   String _buildInitialStatus() {
     if (pendingNotices.isNotEmpty) return '有 ${pendingNotices.length} 条事项待确认';
     if (todayEvents.isNotEmpty) return '今天有 ${todayEvents.length} 条安排';
-    return '等待导入校园通知';
+    return '';
   }
 
   DateTime? _referenceTimeForNotice(ParsedNotice notice) {

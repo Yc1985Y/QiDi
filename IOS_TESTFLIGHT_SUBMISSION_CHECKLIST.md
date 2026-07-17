@@ -8,6 +8,9 @@
 
 - [ ] Bundle Identifier 已确定，建议当前值：`com.zhishi.timeweaver`
 - [ ] Apple Developer App ID 已创建。
+- [ ] Share Extension App ID `com.zhishi.timeweaver.ShareExtension` 已创建。
+- [ ] Runner 与 Share Extension 均已启用 `group.com.zhishi.timeweaver`。
+- [ ] 主 App 与 Share Extension 的 App Store provisioning profile 均已准备。
 - [ ] App Store Connect App 记录已创建。
 - [ ] Display Name 为：`织时`
 - [ ] 版本号和 build number 符合 TestFlight 上传要求。

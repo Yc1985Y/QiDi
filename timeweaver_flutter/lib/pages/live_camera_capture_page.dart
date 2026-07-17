@@ -25,7 +25,7 @@ class _LiveCameraCapturePageState extends State<LiveCameraCapturePage>
   bool _initializing = true;
   bool _isCapturing = false;
   bool _torchEnabled = false;
-  String _statusText = '实时取景已就绪';
+  String _statusText = '实时取景已打开，请对准通知后按下快门';
 
   @override
   void initState() {
@@ -110,7 +110,7 @@ class _LiveCameraCapturePageState extends State<LiveCameraCapturePage>
         _initializing = false;
         _cameraAvailable = true;
         _torchEnabled = false;
-        _statusText = '实时取景已就绪';
+        _statusText = '实时取景已打开，请对准通知后按下快门';
       });
     } catch (_) {
       await controller.dispose();
@@ -219,14 +219,14 @@ class _LiveCameraCapturePageState extends State<LiveCameraCapturePage>
                 colors: [
                   Colors.black.withValues(alpha: 0.38),
                   Colors.transparent,
-                  Colors.black.withValues(alpha: 0.55),
+                  Colors.black.withValues(alpha: 0.52),
                 ],
               ),
             ),
           ),
           SafeArea(
             child: Padding(
-              padding: const EdgeInsets.fromLTRB(16, 24, 16, 24),
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 32),
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
@@ -247,7 +247,7 @@ class _LiveCameraCapturePageState extends State<LiveCameraCapturePage>
                             tooltip: '闪光灯',
                             onTap: _toggleTorch,
                           ),
-                          const SizedBox(width: 10),
+                          const SizedBox(width: 6),
                           _GlassIconButton(
                             icon: Icons.cameraswitch_rounded,
                             tooltip: '切换摄像头',
@@ -257,44 +257,52 @@ class _LiveCameraCapturePageState extends State<LiveCameraCapturePage>
                       ),
                     ],
                   ),
-                  Container(
-                    width: double.infinity,
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 16,
-                      vertical: 14,
-                    ),
-                    decoration: BoxDecoration(
-                      color: Colors.white.withValues(alpha: 0.18),
-                      borderRadius: BorderRadius.circular(20),
-                      border: Border.all(
-                        color: Colors.white.withValues(alpha: 0.18),
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 10),
+                    child: Container(
+                      width: double.infinity,
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 16,
+                        vertical: 14,
                       ),
-                    ),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          _cameraAvailable
-                              ? '把海报、课表或群通知放进取景框'
-                              : '相机预览不可用',
-                          style: const TextStyle(
-                            color: Colors.white,
-                            fontSize: 15,
-                            fontWeight: FontWeight.w700,
-                          ),
+                      decoration: BoxDecoration(
+                        color: Colors.white.withValues(alpha: 0.18),
+                        borderRadius: BorderRadius.circular(20),
+                        border: Border.all(
+                          color: const Color(
+                            0xFFF0E4D6,
+                          ).withValues(alpha: 0.68),
+                          width: 0.6,
                         ),
-                        const SizedBox(height: 6),
-                        Text(
-                          _cameraAvailable
-                              ? '确认画面清晰后点击下方快门，织时会截取这一帧进行解析。'
-                              : '当前设备没有可用相机预览，请改用相册、分享或粘贴文本继续导入。',
-                          style: TextStyle(
-                            color: Colors.white.withValues(alpha: 0.84),
-                            fontSize: 12,
-                            height: 1.45,
+                      ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            _cameraAvailable
+                                ? '把海报、课表或群通知放进取景框'
+                                : '当前设备暂时没有可用摄像头',
+                            style: const TextStyle(
+                              color: Colors.white,
+                              fontSize: 12.5,
+                              height: 18 / 12.5,
+                              fontWeight: FontWeight.w600,
+                            ),
                           ),
-                        ),
-                      ],
+                          const SizedBox(height: 4),
+                          Text(
+                            _cameraAvailable
+                                ? '确认画面清晰后点击下方快门，织时会截取这一帧进行解析。'
+                                : '可以返回首页改用相册、分享或粘贴文本。',
+                            style: TextStyle(
+                              color: Colors.white.withValues(alpha: 0.78),
+                              fontSize: 10.5,
+                              height: 13 / 10.5,
+                              fontWeight: FontWeight.w500,
+                            ),
+                          ),
+                        ],
+                      ),
                     ),
                   ),
                   Row(
@@ -317,15 +325,17 @@ class _LiveCameraCapturePageState extends State<LiveCameraCapturePage>
                                       ? '实时取景已就绪'
                                       : _statusText),
                             style: TextStyle(
-                              color: Colors.white.withValues(alpha: 0.9),
+                              color: Colors.white.withValues(alpha: 0.86),
+                              fontSize: 11.5,
+                              height: 16 / 11.5,
                               fontWeight: FontWeight.w600,
                             ),
                           ),
-                          const SizedBox(height: 14),
-                          GestureDetector(
-                            onTap: _cameraAvailable && !_isCapturing
-                                ? _capture
-                                : null,
+                          const SizedBox(height: 10),
+                          _CameraPressFeedback(
+                            enabled: _cameraAvailable && !_isCapturing,
+                            onTap: _capture,
+                            borderRadius: BorderRadius.circular(43),
                             child: Container(
                               width: 86,
                               height: 86,
@@ -404,29 +414,81 @@ class _SideActionButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Material(
-      color: Colors.white.withValues(alpha: 0.16),
-      borderRadius: BorderRadius.circular(22),
-      child: InkWell(
-        borderRadius: BorderRadius.circular(22),
-        onTap: enabled ? onTap : null,
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Icon(icon, color: Colors.white, size: 22),
-              const SizedBox(height: 8),
-              Text(
-                label,
-                style: const TextStyle(
-                  color: Colors.white,
-                  fontSize: 12,
-                  fontWeight: FontWeight.w600,
-                ),
+    return _CameraPressFeedback(
+      enabled: enabled,
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(20),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+        decoration: BoxDecoration(
+          color: Colors.white.withValues(alpha: 0.16),
+          borderRadius: BorderRadius.circular(20),
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(icon, color: Colors.white, size: 22),
+            const SizedBox(height: 8),
+            Text(
+              label,
+              style: const TextStyle(
+                color: Colors.white,
+                fontSize: 10.5,
+                height: 13 / 10.5,
+                fontWeight: FontWeight.w500,
               ),
-            ],
-          ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _CameraPressFeedback extends StatefulWidget {
+  const _CameraPressFeedback({
+    required this.enabled,
+    required this.onTap,
+    required this.borderRadius,
+    required this.child,
+  });
+
+  final bool enabled;
+  final VoidCallback onTap;
+  final BorderRadius borderRadius;
+  final Widget child;
+
+  @override
+  State<_CameraPressFeedback> createState() => _CameraPressFeedbackState();
+}
+
+class _CameraPressFeedbackState extends State<_CameraPressFeedback> {
+  bool _pressed = false;
+
+  void _setPressed(bool value) {
+    if (_pressed == value) return;
+    setState(() => _pressed = value);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return TweenAnimationBuilder<double>(
+      tween: Tween(end: widget.enabled && _pressed ? 1 : 0),
+      duration: const Duration(milliseconds: 120),
+      curve: Curves.easeOutCubic,
+      builder: (context, progress, child) => Transform.translate(
+        offset: Offset(0, 2 * progress),
+        child: Transform.scale(scale: 1 - (0.015 * progress), child: child),
+      ),
+      child: GestureDetector(
+        behavior: HitTestBehavior.opaque,
+        onTap: widget.enabled ? widget.onTap : null,
+        onTapDown: widget.enabled ? (_) => _setPressed(true) : null,
+        onTapUp: widget.enabled ? (_) => _setPressed(false) : null,
+        onTapCancel: widget.enabled ? () => _setPressed(false) : null,
+        child: ClipRRect(
+          borderRadius: widget.borderRadius,
+          child: widget.child,
         ),
       ),
     );

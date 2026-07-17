@@ -126,8 +126,9 @@ class TimelineExportService {
     final bytes = switch (format) {
       TimelineExportFormat.png => pngBytes,
       TimelineExportFormat.jpg => _encodeJpgFromPng(pngBytes),
-      TimelineExportFormat.pdf =>
-        throw const TimelineExportException('图片导出不支持 PDF 格式'),
+      TimelineExportFormat.pdf => throw const TimelineExportException(
+        '图片导出不支持 PDF 格式',
+      ),
     };
     return _writeExportBytes(bytes, format);
   }
@@ -166,24 +167,24 @@ class TimelineExportService {
   }
 
   List<EventItem> _orderedEvents(List<EventItem> events) {
-    return events.toList()
-      ..sort((a, b) {
-        final left = a.startTime ?? DateTime(9999);
-        final right = b.startTime ?? DateTime(9999);
-        return left.compareTo(right);
-      });
+    return events.toList()..sort((a, b) {
+      final left = a.startTime ?? DateTime(9999);
+      final right = b.startTime ?? DateTime(9999);
+      return left.compareTo(right);
+    });
   }
 
   Future<Uint8List> _renderSnapshotPng(List<EventItem> events) async {
     final lineItems = _buildSnapshotLines(events);
     const width = 1400.0;
-    final height = (lineItems.fold<double>(
-          260,
-          (value, item) => value + item.estimatedHeight,
-        ) +
-        100)
-        .clamp(960, 5400)
-        .toDouble();
+    final height =
+        (lineItems.fold<double>(
+                  260,
+                  (value, item) => value + item.estimatedHeight,
+                ) +
+                100)
+            .clamp(960, 5400)
+            .toDouble();
 
     final recorder = ui.PictureRecorder();
     final canvas = Canvas(recorder);
@@ -261,7 +262,10 @@ class TimelineExportService {
       top += item.estimatedHeight;
     }
 
-    final image = await recorder.endRecording().toImage(width.toInt(), height.toInt());
+    final image = await recorder.endRecording().toImage(
+      width.toInt(),
+      height.toInt(),
+    );
     final data = await image.toByteData(format: ui.ImageByteFormat.png);
     if (data == null) {
       throw const TimelineExportException('图片导出失败，未生成位图数据');
@@ -354,12 +358,11 @@ class TimelineExportService {
         );
       }
 
-      final estimatedHeight = lines.fold<double>(
-            58,
-            (value, line) => value + line.height,
-          ) +
-          18;
-      blocks.add(_SnapshotBlock(lines: lines, estimatedHeight: estimatedHeight));
+      final estimatedHeight =
+          lines.fold<double>(58, (value, line) => value + line.height) + 18;
+      blocks.add(
+        _SnapshotBlock(lines: lines, estimatedHeight: estimatedHeight),
+      );
     }
     return blocks;
   }

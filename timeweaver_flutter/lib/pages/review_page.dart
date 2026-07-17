@@ -1,9 +1,11 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 
 import '../app.dart';
 import '../models/parsed_notice.dart';
 import '../utils/date_utils.dart';
 import '../widgets/weaving_widgets.dart';
+import 'review_logic.dart';
 
 class ReviewPage extends StatefulWidget {
   const ReviewPage({super.key, required this.controller, required this.notice});
@@ -28,10 +30,20 @@ class _ReviewPageState extends State<ReviewPage> {
     _time = TextEditingController(text: widget.notice.startTimeIso ?? '');
     _location = TextEditingController(text: widget.notice.location ?? '');
     _description = TextEditingController(text: widget.notice.description ?? '');
+    for (final controller in [_title, _time, _location, _description]) {
+      controller.addListener(_refreshDraft);
+    }
+  }
+
+  void _refreshDraft() {
+    if (mounted) setState(() {});
   }
 
   @override
   void dispose() {
+    for (final controller in [_title, _time, _location, _description]) {
+      controller.removeListener(_refreshDraft);
+    }
     _title.dispose();
     _time.dispose();
     _location.dispose();
@@ -40,16 +52,32 @@ class _ReviewPageState extends State<ReviewPage> {
   }
 
   ParsedNotice get _draft {
-    return widget.notice.copyWith(
-      title: _title.text.trim().isEmpty ? '新的校园事项' : _title.text.trim(),
+    final title = _title.text.trim();
+    final startTimeIso = _time.text.trim().isEmpty ? null : _time.text.trim();
+    final action = reviewedNoticeAction(
+      currentAction: widget.notice.action,
+      title: title,
+      startTimeIso: startTimeIso,
+    );
+    return ParsedNotice(
+      id: widget.notice.id,
+      title: title,
       eventType: widget.notice.eventType,
-      startTimeIso: _time.text.trim().isEmpty ? null : _time.text.trim(),
+      startTimeIso: startTimeIso,
       deadlineIso: widget.notice.deadlineIso,
       location: _location.text.trim().isEmpty ? null : _location.text.trim(),
       description: _description.text.trim().isEmpty
           ? null
           : _description.text.trim(),
-      status: '待确认',
+      source: widget.notice.source,
+      confidence: widget.notice.confidence,
+      reminderSuggestion: widget.notice.reminderSuggestion,
+      rawPayload: widget.notice.rawPayload,
+      status: action == NoticeAction.navigate ? '待导航' : '待确认',
+      action: action,
+      fallbackQuery: widget.notice.fallbackQuery,
+      createdAtIso: widget.notice.createdAtIso,
+      ownerAccount: widget.notice.ownerAccount,
     );
   }
 
@@ -75,8 +103,8 @@ class _ReviewPageState extends State<ReviewPage> {
       builder: (context, _) {
         final draft = _draft;
         final conflicts = widget.controller.detectConflictsForNotice(draft);
-        final issues = _buildValidationIssues(draft, conflicts);
-        final confidencePercent = (draft.confidence * 100).round().clamp(
+        final issues = buildReviewValidationIssues(draft);
+        final confidencePercent = (draft.confidence * 100).toInt().clamp(
           0,
           100,
         );
@@ -84,233 +112,233 @@ class _ReviewPageState extends State<ReviewPage> {
         final issueTitle = issues.isEmpty ? '校验结果' : '需要留意';
         final issueSummary = issues.isEmpty
             ? '标题、时间、地点等关键字段已经具备，可以确认写入。'
-            : issues.join(' / ');
+            : issues.map(reviewIssueLabel).join(' / ');
         final issueCardColor = issues.isEmpty
             ? AppColors.primarySoft
             : AppColors.gold;
+        final canConfirm = canConfirmReview(draft);
         return Scaffold(
           backgroundColor: AppColors.background,
           body: SafeArea(
             child: WeavingBackground(
+              showStarField: true,
+              interactiveStars: true,
               child: ListView(
-                padding: const EdgeInsets.fromLTRB(16, 18, 16, 24),
+                padding: const EdgeInsets.fromLTRB(16, 16, 16, 120),
                 children: [
                   Row(
                     children: [
-                      IconButton.filledTonal(
-                        onPressed: () => Navigator.pop(context),
-                        icon: const Icon(Icons.arrow_back_rounded),
-                        tooltip: '返回',
-                      ),
-                      const SizedBox(width: 10),
+                      _ReviewIconBubble(onTap: () => Navigator.pop(context)),
+                      const SizedBox(width: 14),
                       Expanded(
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
-                          children: const [
-                            Text(
+                          children: [
+                            const Text(
                               '解析校验',
                               style: TextStyle(
-                                fontSize: 22,
-                                fontWeight: FontWeight.w900,
+                                fontFamily: 'PlusJakartaSans',
+                                fontSize: 21,
+                                height: 27 / 21,
+                                fontWeight: FontWeight.w800,
                                 color: AppColors.primary,
                               ),
                             ),
-                            SizedBox(height: 2),
-                            Text(
+                            const SizedBox(height: 3),
+                            const Text(
                               '先核对 AI 抽取结果，再决定是否写入系统',
-                              style: TextStyle(color: AppColors.muted),
+                              style: TextStyle(
+                                fontSize: 12.5,
+                                height: 18 / 12.5,
+                                color: AppColors.muted,
+                              ),
                             ),
                           ],
                         ),
                       ),
                     ],
                   ),
-                  const SizedBox(height: 14),
+                  const SizedBox(height: 10),
                   WeavingCard(
                     color: needsAttention
                         ? AppColors.coral
                         : AppColors.surfaceWarm,
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
+                    child: Row(
+                      crossAxisAlignment: CrossAxisAlignment.center,
                       children: [
-                        Row(
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              InfoChip(
+                                label: draft.source.label.trim().isEmpty
+                                    ? '待校验'
+                                    : draft.source.label,
+                                icon: Icons.schedule,
+                                backgroundColor: Colors.white.withValues(
+                                  alpha: 0.52,
+                                ),
+                              ),
+                              const SizedBox(height: 8),
+                              Text(
+                                needsAttention
+                                    ? '这条结果需要你重点看一眼'
+                                    : '信息已经整理成可执行草稿',
+                                style: Theme.of(context)
+                                    .textTheme
+                                    .headlineMedium
+                                    ?.copyWith(color: AppColors.primary),
+                              ),
+                              const SizedBox(height: 8),
+                              Text(
+                                buildReviewPrompt(draft, issues),
+                                style: Theme.of(context).textTheme.bodyMedium
+                                    ?.copyWith(color: AppColors.muted),
+                                maxLines: 3,
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                            ],
+                          ),
+                        ),
+                        Column(
+                          mainAxisSize: MainAxisSize.min,
                           children: [
-                            InfoChip(
-                              label: draft.source.label.trim().isEmpty
-                                  ? '待校验'
-                                  : draft.source.label,
-                              icon: Icons.schedule,
+                            Text(
+                              '$confidencePercent%',
+                              style: TextStyle(
+                                fontFamily: 'monospace',
+                                fontSize: 17,
+                                height: 21 / 17,
+                                fontWeight: FontWeight.w900,
+                                color: needsAttention
+                                    ? const Color(0xFF9E3F42)
+                                    : AppColors.primary,
+                              ),
                             ),
-                            const Spacer(),
-                            Column(
-                              crossAxisAlignment: CrossAxisAlignment.end,
-                              children: [
-                                Text(
-                                  '$confidencePercent%',
-                                  style: const TextStyle(
-                                    fontSize: 22,
-                                    fontWeight: FontWeight.w900,
-                                    color: AppColors.primary,
-                                  ),
-                                ),
-                                const Text(
-                                  '信心',
-                                  style: TextStyle(
-                                    fontSize: 12,
-                                    color: AppColors.muted,
-                                  ),
-                                ),
-                              ],
+                            const SizedBox(height: 4),
+                            const Text(
+                              '信心',
+                              style: TextStyle(
+                                fontSize: 10.5,
+                                height: 13 / 10.5,
+                                color: AppColors.muted,
+                              ),
                             ),
                           ],
-                        ),
-                        const SizedBox(height: 12),
-                        Text(
-                          needsAttention ? '这条结果需要你重点看一眼' : '信息已经整理成可执行草稿',
-                          style: Theme.of(context).textTheme.titleMedium,
-                        ),
-                        const SizedBox(height: 6),
-                        Text(
-                          _buildHeroPrompt(draft),
-                          style: const TextStyle(color: AppColors.muted),
-                          maxLines: 3,
-                          overflow: TextOverflow.ellipsis,
                         ),
                       ],
                     ),
                   ),
-                  const SizedBox(height: 14),
-                  StatusStrip(
-                    message: widget.controller.statusMessage,
-                    error: widget.controller.errorMessage,
-                    busy: widget.controller.isBusy,
-                  ),
                   if (conflicts.isNotEmpty) ...[
-                    const SizedBox(height: 14),
+                    const SizedBox(height: 10),
                     WeavingCard(
-                      color: const Color(0xFFFFE0DC),
+                      color: AppColors.coral.withValues(alpha: 0.92),
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Text(
                             '时间冲突提醒',
-                            style: Theme.of(context).textTheme.titleMedium,
+                            style: Theme.of(context).textTheme.headlineMedium
+                                ?.copyWith(color: AppColors.primary),
                           ),
                           const SizedBox(height: 8),
                           const Text(
-                            '这条安排与现有时间线中的事项时间靠得很近，建议确认后再写入。',
+                            '这条安排和你时间线里的既有事项靠得很近，建议先核对后再确认。',
                             style: TextStyle(color: AppColors.muted),
                           ),
                           const SizedBox(height: 10),
                           ...conflicts
-                              .take(3)
+                              .take(2)
                               .map(
-                                (event) => Padding(
-                                  padding: const EdgeInsets.only(bottom: 8),
-                                  child: Container(
-                                    width: double.infinity,
-                                    padding: const EdgeInsets.all(12),
-                                    decoration: BoxDecoration(
-                                      color: Colors.white.withValues(
-                                        alpha: 0.75,
-                                      ),
-                                      borderRadius: BorderRadius.circular(16),
-                                    ),
-                                    child: Column(
-                                      crossAxisAlignment:
-                                          CrossAxisAlignment.start,
-                                      children: [
-                                        Text(
-                                          event.title,
-                                          style: const TextStyle(
-                                            fontWeight: FontWeight.w800,
-                                            color: AppColors.primary,
-                                          ),
-                                        ),
-                                        const SizedBox(height: 4),
-                                        Text(
-                                          [
-                                            ZhishiDateUtils.formatDateTime(
-                                              event.startTimeIso,
-                                            ),
-                                            if (event.location != null &&
-                                                event.location!
-                                                    .trim()
-                                                    .isNotEmpty)
-                                              event.location!,
-                                          ].join(' · '),
-                                          style: const TextStyle(
-                                            color: AppColors.muted,
-                                          ),
-                                        ),
-                                      ],
-                                    ),
+                                (event) => InfoChip(
+                                  label: buildReviewConflictLabel(
+                                    event,
+                                    ZhishiDateUtils.parse(draft.startTimeIso)!,
                                   ),
+                                  backgroundColor: Colors.white.withValues(
+                                    alpha: 0.52,
+                                  ),
+                                  contentColor: const Color(0xFF9E3F42),
                                 ),
                               ),
                         ],
                       ),
                     ),
                   ],
-                  const SizedBox(height: 14),
+                  const SizedBox(height: 10),
                   WeavingCard(
+                    color: AppColors.surfaceLowest.withValues(alpha: 0.90),
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
                           '原始输入回顾',
-                          style: Theme.of(context).textTheme.titleMedium,
+                          style: Theme.of(context).textTheme.headlineMedium
+                              ?.copyWith(color: AppColors.primary),
                         ),
                         const SizedBox(height: 10),
-                        Container(
-                          width: double.infinity,
-                          padding: const EdgeInsets.all(14),
-                          decoration: BoxDecoration(
-                            color: Colors.white.withValues(alpha: 0.65),
-                            borderRadius: BorderRadius.circular(16),
-                          ),
-                          child: Text(
-                            _buildSourcePreview(widget.notice),
-                            style: const TextStyle(
-                              color: AppColors.text,
-                              height: 1.45,
+                        ConstrainedBox(
+                          constraints: const BoxConstraints(minHeight: 92),
+                          child: Container(
+                            width: double.infinity,
+                            padding: const EdgeInsets.all(16),
+                            decoration: BoxDecoration(
+                              color: Colors.white.withValues(alpha: 0.45),
+                              borderRadius: BorderRadius.circular(20),
+                            ),
+                            child: Text(
+                              _buildSourcePreview(widget.notice),
+                              style: Theme.of(context).textTheme.bodyMedium
+                                  ?.copyWith(color: AppColors.muted),
+                              maxLines: 6,
+                              overflow: TextOverflow.ellipsis,
                             ),
                           ),
                         ),
                       ],
                     ),
                   ),
-                  const SizedBox(height: 14),
+                  const SizedBox(height: 10),
                   WeavingCard(
+                    color: AppColors.surfaceLowest.withValues(alpha: 0.94),
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
                           '结构化校验',
-                          style: Theme.of(context).textTheme.titleMedium,
+                          style: Theme.of(context).textTheme.headlineMedium
+                              ?.copyWith(color: AppColors.primary),
                         ),
                         const SizedBox(height: 10),
                         _EditField(
                           label: '事项',
                           controller: _title,
                           icon: Icons.auto_awesome_rounded,
-                          highlight: draft.title.trim().isEmpty,
+                          highlight:
+                              needsAttention && draft.title.trim().isEmpty,
                           hintText: '例如：人工智能前沿讲座',
+                          maxLength: 60,
                         ),
                         _EditField(
                           label: '时间',
                           controller: _time,
                           icon: Icons.calendar_month_rounded,
-                          highlight: (draft.startTimeIso ?? '').trim().isEmpty,
-                          helper: '支持 ISO 时间或原始时间文本',
+                          highlight:
+                              needsAttention &&
+                              (draft.startTimeIso ?? '').trim().isEmpty,
                           hintText: '例如：2026-05-16T19:00:00',
+                          maxLength: 60,
                         ),
                         _EditField(
                           label: '地点',
                           controller: _location,
                           icon: Icons.location_on_rounded,
-                          highlight: false,
+                          highlight:
+                              draft.action == NoticeAction.navigate &&
+                              needsAttention &&
+                              (draft.location ?? '').trim().isEmpty,
                           hintText: '可留空：无地点事项也能保留',
+                          maxLength: 60,
                         ),
                         _EditField(
                           label: '备注',
@@ -318,12 +346,13 @@ class _ReviewPageState extends State<ReviewPage> {
                           icon: Icons.content_paste_rounded,
                           highlight: false,
                           hintText: '可补充签到、会议号、来源说明等',
-                          maxLines: 4,
+                          maxLines: 3,
+                          maxLength: 120,
                         ),
                       ],
                     ),
                   ),
-                  const SizedBox(height: 14),
+                  const SizedBox(height: 10),
                   WeavingCard(
                     color: issueCardColor,
                     child: Column(
@@ -331,7 +360,8 @@ class _ReviewPageState extends State<ReviewPage> {
                       children: [
                         Text(
                           issueTitle,
-                          style: Theme.of(context).textTheme.titleMedium,
+                          style: Theme.of(context).textTheme.headlineMedium
+                              ?.copyWith(color: AppColors.primary),
                         ),
                         const SizedBox(height: 8),
                         Text(
@@ -344,16 +374,10 @@ class _ReviewPageState extends State<ReviewPage> {
                       ],
                     ),
                   ),
-                  const SizedBox(height: 14),
-                  SizedBox(
-                    width: double.infinity,
-                    child: FilledButton.icon(
-                      onPressed: widget.controller.isBusy
-                          ? null
-                          : _confirmDraft,
-                      icon: const Icon(Icons.check_circle_rounded),
-                      label: const Text('确认写入时间线'),
-                    ),
+                  const SizedBox(height: 10),
+                  _ReviewPrimaryButton(
+                    enabled: canConfirm && !widget.controller.isBusy,
+                    onTap: _confirmDraft,
                   ),
                   const SizedBox(height: 10),
                   Row(
@@ -373,7 +397,7 @@ class _ReviewPageState extends State<ReviewPage> {
                           onTap: _discardDraft,
                           color: AppColors.coral,
                           enabled: !widget.controller.isBusy,
-                          textColor: AppColors.primary,
+                          textColor: const Color(0xFF9E3F42),
                         ),
                       ),
                     ],
@@ -404,36 +428,6 @@ class _ReviewPageState extends State<ReviewPage> {
     ];
     return parts.join('\n\n');
   }
-
-  String _buildHeroPrompt(ParsedNotice notice) {
-    if (notice.description?.trim().isNotEmpty == true) {
-      return notice.description!;
-    }
-    if (notice.title.trim().isNotEmpty) {
-      return '已抽取到事项《${notice.title}》，请核对时间、地点和备注后再写入。';
-    }
-    return '请检查标题、时间、地点后再确认写入。';
-  }
-
-  List<String> _buildValidationIssues(
-    ParsedNotice notice,
-    List<dynamic> conflicts,
-  ) {
-    final issues = <String>[];
-    if (notice.title.trim().isEmpty) {
-      issues.add('事项标题为空，建议先补齐。');
-    }
-    if ((notice.startTimeIso ?? '').trim().isEmpty) {
-      issues.add('时间字段为空，确认写入前建议补齐。');
-    }
-    if (conflicts.isNotEmpty) {
-      issues.add('当前与已有时间线事项存在近时段冲突，建议先复核。');
-    }
-    if ((notice.location ?? '').trim().isEmpty) {
-      issues.add('地点为空时仍可保存，但地图与到场提醒会受影响。');
-    }
-    return issues;
-  }
 }
 
 class _EditField extends StatelessWidget {
@@ -443,8 +437,8 @@ class _EditField extends StatelessWidget {
     required this.icon,
     required this.highlight,
     this.maxLines = 1,
-    this.helper,
     this.hintText,
+    this.maxLength,
   });
 
   final String label;
@@ -452,8 +446,8 @@ class _EditField extends StatelessWidget {
   final IconData icon;
   final bool highlight;
   final int maxLines;
-  final String? helper;
   final String? hintText;
+  final int? maxLength;
 
   @override
   Widget build(BuildContext context) {
@@ -464,8 +458,8 @@ class _EditField extends StatelessWidget {
         decoration: BoxDecoration(
           color: highlight
               ? AppColors.coral.withValues(alpha: 0.72)
-              : Colors.white.withValues(alpha: 0.5),
-          borderRadius: BorderRadius.circular(16),
+              : Colors.white.withValues(alpha: 0.45),
+          borderRadius: BorderRadius.circular(20),
         ),
         child: Row(
           crossAxisAlignment: maxLines == 1
@@ -477,7 +471,7 @@ class _EditField extends StatelessWidget {
               height: 40,
               decoration: BoxDecoration(
                 color: highlight
-                    ? Colors.white.withValues(alpha: 0.66)
+                    ? Colors.white.withValues(alpha: 0.62)
                     : AppColors.gold,
                 borderRadius: BorderRadius.circular(999),
               ),
@@ -487,28 +481,43 @@ class _EditField extends StatelessWidget {
             Expanded(
               child: TextField(
                 controller: controller,
+                inputFormatters: maxLength == null
+                    ? null
+                    : [LengthLimitingTextInputFormatter(maxLength)],
+                buildCounter:
+                    (
+                      _, {
+                      required currentLength,
+                      required isFocused,
+                      maxLength,
+                    }) => null,
+                style: Theme.of(context).textTheme.bodyLarge,
+                minLines: 1,
                 maxLines: maxLines,
                 decoration: InputDecoration(
                   labelText: label,
-                  helperText: helper,
                   hintText: hintText,
                   filled: true,
-                  fillColor: Colors.white.withValues(alpha: 0.36),
+                  fillColor: Colors.white.withValues(alpha: 0.26),
                   border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(16),
-                    borderSide: const BorderSide(color: AppColors.border),
+                    borderRadius: BorderRadius.circular(12),
+                    borderSide: BorderSide.none,
                   ),
                   enabledBorder: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(16),
+                    borderRadius: BorderRadius.circular(12),
                     borderSide: BorderSide(
                       color: highlight
-                          ? AppColors.primary.withValues(alpha: 0.48)
-                          : AppColors.border,
+                          ? const Color(0xFF9E3F42).withValues(alpha: 0.52)
+                          : Colors.transparent,
                     ),
                   ),
                   focusedBorder: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(16),
-                    borderSide: const BorderSide(color: AppColors.primary),
+                    borderRadius: BorderRadius.circular(12),
+                    borderSide: BorderSide(
+                      color: highlight
+                          ? const Color(0xFF9E3F42)
+                          : AppColors.primary,
+                    ),
                   ),
                 ),
               ),
@@ -546,11 +555,74 @@ class _ReviewSecondaryAction extends StatelessWidget {
           onTap: () {
             onTap();
           },
-          child: Center(
-            child: Text(
-              label,
-              style: TextStyle(color: textColor, fontWeight: FontWeight.w800),
+          child: Text(
+            label,
+            style: Theme.of(context).textTheme.bodyLarge?.copyWith(
+              color: textColor,
+              fontWeight: FontWeight.w700,
             ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _ReviewIconBubble extends StatelessWidget {
+  const _ReviewIconBubble({required this.onTap});
+
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      color: Colors.white.withValues(alpha: 0.82),
+      shape: const CircleBorder(
+        side: BorderSide(color: Color(0xA3FFFFFF), width: 0.8),
+      ),
+      child: InkWell(
+        customBorder: const CircleBorder(),
+        onTap: onTap,
+        child: const SizedBox.square(
+          dimension: 44,
+          child: Icon(
+            Icons.arrow_back_rounded,
+            size: 20,
+            color: AppColors.primary,
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _ReviewPrimaryButton extends StatelessWidget {
+  const _ReviewPrimaryButton({required this.enabled, required this.onTap});
+
+  final bool enabled;
+  final Future<void> Function() onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return SizedBox(
+      width: double.infinity,
+      height: 50,
+      child: FilledButton.icon(
+        onPressed: enabled ? () => onTap() : null,
+        style: FilledButton.styleFrom(
+          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+          shape: const StadiumBorder(),
+          backgroundColor: AppColors.primary,
+          disabledBackgroundColor: AppColors.primary.withValues(alpha: 0.45),
+          disabledForegroundColor: Colors.white.withValues(alpha: 0.75),
+        ),
+        icon: const Icon(Icons.check_circle_rounded, size: 17),
+        label: const Text(
+          '确认写入时间线',
+          style: TextStyle(
+            fontSize: 15,
+            height: 20 / 15,
+            fontWeight: FontWeight.w700,
           ),
         ),
       ),

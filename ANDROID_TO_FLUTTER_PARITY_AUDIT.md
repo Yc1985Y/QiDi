@@ -1,5 +1,7 @@
 # Android -> Flutter 对齐审计报告
 
+> 2026-07-17 状态说明：本文保留了历史审计过程，其中“仅 PDF”“系统语音识别”“页面仍部分对齐”等阶段性结论已经过期。当前完成状态和未验证边界以 `ANDROID_TO_FLUTTER_FULL_PARITY_MATRIX.md` 与 `REAL_FUNCTION_COMPLETION_REPORT.md` 为准。本轮已完成 vivo ASR、action/clarification 语义、首页/时间线/校验页和全部 17 个 ProfileRoute 的源码级迁移与模拟器回归；iOS 真机和无 Google 账号模拟器上的系统日历最终保存仍未验证。
+
 更新时间：`2026-07-02`
 
 ## 审计范围

@@ -10,6 +10,7 @@ import '../utils/date_utils.dart';
 import '../widgets/weaving_widgets.dart';
 import 'live_camera_capture_page.dart';
 import 'review_page.dart';
+import 'review_logic.dart';
 
 class HomePage extends StatelessWidget {
   const HomePage({super.key, required this.controller});
@@ -23,14 +24,19 @@ class HomePage extends StatelessWidget {
 
     return WeavingBackground(
       child: ListView(
-        padding: const EdgeInsets.fromLTRB(16, 18, 16, 24),
+        padding: const EdgeInsets.fromLTRB(16, 16, 16, 120),
         children: [
-          _HomeGreeting(controller: controller),
-          const SizedBox(height: 16),
+          _HomeGreeting(
+            controller: controller,
+            onNotificationTap: primaryPending == null
+                ? () => controller.setTab(2)
+                : () => _openReviewPage(context, controller, primaryPending),
+          ),
+          const SizedBox(height: 10),
           _HomeOverviewCard(controller: controller),
-          const SizedBox(height: 16),
+          const SizedBox(height: 10),
           _InputEnergyHubCard(controller: controller),
-          const SizedBox(height: 22),
+          const SizedBox(height: 10),
           const SectionHeader(title: '最近识别结果'),
           const SizedBox(height: 10),
           if (primaryPending != null)
@@ -93,9 +99,13 @@ class HomePage extends StatelessWidget {
 }
 
 class _HomeGreeting extends StatelessWidget {
-  const _HomeGreeting({required this.controller});
+  const _HomeGreeting({
+    required this.controller,
+    required this.onNotificationTap,
+  });
 
   final AppController controller;
+  final VoidCallback onNotificationTap;
 
   @override
   Widget build(BuildContext context) {
@@ -109,33 +119,61 @@ class _HomeGreeting extends StatelessWidget {
         : '今天想把哪条校园通知整理进时间线？';
 
     return Row(
-      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      crossAxisAlignment: CrossAxisAlignment.center,
       children: [
-        Row(
-          children: [
-            _HomeAvatar(
-              avatarPath: controller.preference.avatarPath.trim(),
-              fallbackText: nickname,
-              onTap: () => controller.setTab(2),
-            ),
-            const SizedBox(width: 14),
-            Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  'Hi, $nickname',
-                  style: Theme.of(context).textTheme.headlineMedium,
+        Expanded(
+          child: Row(
+            children: [
+              _HomeAvatar(
+                avatarPath: controller.preference.avatarPath.trim(),
+                fallbackText: nickname,
+                onTap: () => controller.setTab(2),
+              ),
+              const SizedBox(width: 14),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Hi, $nickname',
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: Theme.of(context).textTheme.headlineMedium,
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      subtitle,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: Theme.of(
+                        context,
+                      ).textTheme.bodyMedium?.copyWith(color: AppColors.muted),
+                    ),
+                  ],
                 ),
-                const SizedBox(height: 2),
-                Text(subtitle, style: const TextStyle(color: AppColors.muted)),
-              ],
-            ),
-          ],
+              ),
+            ],
+          ),
         ),
-        IconButton.filledTonal(
-          onPressed: () => controller.setTab(2),
-          icon: const Icon(Icons.notifications_active_rounded),
-          tooltip: '通知与资料',
+        const SizedBox(width: 10),
+        Material(
+          color: AppColors.surfaceWarm,
+          shape: const CircleBorder(
+            side: BorderSide(color: Colors.white, width: 0.8),
+          ),
+          child: InkWell(
+            customBorder: const CircleBorder(),
+            onTap: onNotificationTap,
+            child: const SizedBox(
+              width: 44,
+              height: 44,
+              child: Icon(
+                Icons.notifications_active_rounded,
+                size: 20,
+                color: AppColors.primary,
+              ),
+            ),
+          ),
         ),
       ],
     );
@@ -165,7 +203,7 @@ class _HomeAvatar extends StatelessWidget {
           width: 48,
           height: 48,
           decoration: BoxDecoration(
-            color: Colors.white.withValues(alpha: 0.88),
+            color: AppColors.surfaceWarm,
             shape: BoxShape.circle,
             border: Border.all(
               color: Colors.white.withValues(alpha: 0.64),
@@ -198,8 +236,9 @@ class _HomeOverviewCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return WeavingCard(
-      color: const Color(0xFFFFF2B8),
+      color: const Color(0xFFFFF9C7),
       onTap: () => controller.setTab(1),
+      interactionStyle: WeavingInteractionStyle.timelineSlide,
       child: Row(
         children: [
           Expanded(
@@ -240,33 +279,31 @@ class _OverviewMetric extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Column(
-      children: [
-        Container(
-          width: 52,
-          height: 52,
-          decoration: BoxDecoration(
-            color: Colors.white.withValues(alpha: 0.56),
-            borderRadius: BorderRadius.circular(999),
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 4),
+      child: Column(
+        children: [
+          Container(
+            width: 52,
+            height: 52,
+            decoration: BoxDecoration(
+              color: Colors.white.withValues(alpha: 0.56),
+              borderRadius: BorderRadius.circular(999),
+            ),
+            child: Icon(icon, size: 24, color: AppColors.primary),
           ),
-          child: Icon(icon, color: AppColors.primary),
-        ),
-        const SizedBox(height: 10),
-        Text(
-          value,
-          style: Theme.of(
-            context,
-          ).textTheme.displayLarge?.copyWith(fontSize: 28),
-        ),
-        const SizedBox(height: 4),
-        Text(
-          label,
-          style: const TextStyle(
-            color: AppColors.text,
-            fontWeight: FontWeight.w700,
+          const SizedBox(height: 10),
+          Text(value, style: Theme.of(context).textTheme.displayLarge),
+          const SizedBox(height: 10),
+          Text(
+            label,
+            style: Theme.of(context).textTheme.bodyLarge?.copyWith(
+              color: AppColors.text,
+              fontWeight: FontWeight.w700,
+            ),
           ),
-        ),
-      ],
+        ],
+      ),
     );
   }
 }
@@ -302,42 +339,46 @@ class _InputEnergyHubCardState extends State<_InputEnergyHubCard> {
       animation: controller,
       builder: (context, _) {
         return WeavingCard(
-          color: Colors.white.withValues(alpha: 0.9),
+          color: AppColors.surfaceHigh.withValues(alpha: 0.9),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text(
                 '自动识别通知',
-                style: Theme.of(
-                  context,
-                ).textTheme.headlineMedium?.copyWith(fontSize: 24),
+                style: Theme.of(context).textTheme.headlineLarge?.copyWith(
+                  fontSize: 21,
+                  height: 27 / 21,
+                  fontWeight: FontWeight.w800,
+                  color: AppColors.text,
+                ),
               ),
-              const SizedBox(height: 12),
+              const SizedBox(height: 8),
               _CaptureEntryCard(
                 enabled: !controller.isBusy && !isListening,
                 onTap: _openLiveCamera,
               ),
-              const SizedBox(height: 12),
+              const SizedBox(height: 8),
               TextField(
                 controller: _textController,
-                minLines: 4,
+                minLines: 1,
                 maxLines: 5,
                 onChanged: (_) => setState(() {}),
                 decoration: InputDecoration(
                   hintText: '粘贴一段校园通知，我来帮你整理成时间、地点和提醒',
+                  hintStyle: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                    color: AppColors.muted.withValues(alpha: 0.5),
+                  ),
                   filled: true,
                   fillColor: Colors.white.withValues(alpha: 0.72),
-                  prefixIcon: IconButton(
-                    tooltip: '粘贴通知',
+                  prefixIcon: _RoundInputIcon(
+                    icon: Icons.content_paste_rounded,
+                    background: AppColors.gold.withValues(alpha: 0.72),
                     onPressed: controller.isBusy ? null : _pasteFromClipboard,
-                    icon: const Icon(Icons.content_paste_rounded),
                   ),
-                  suffixIcon: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      if (hasText)
-                        IconButton(
-                          tooltip: '清空输入',
+                  suffixIcon: hasText
+                      ? _RoundInputIcon(
+                          icon: Icons.close_rounded,
+                          background: Colors.white.withValues(alpha: 0.78),
                           onPressed: controller.isBusy
                               ? null
                               : () {
@@ -348,23 +389,16 @@ class _InputEnergyHubCardState extends State<_InputEnergyHubCard> {
                                     }
                                   });
                                 },
-                          icon: const Icon(Icons.close_rounded),
+                        )
+                      : _VoiceInputButton(
+                          isListening: isListening,
+                          elapsed: controller.voiceRecordingDuration,
+                          onPressed: controller.isBusy
+                              ? null
+                              : isListening
+                              ? _stopVoice
+                              : _startVoice,
                         ),
-                      IconButton(
-                        tooltip: isListening ? '停止语音' : '开始语音',
-                        onPressed: controller.isBusy
-                            ? null
-                            : isListening
-                            ? _stopVoice
-                            : _startVoice,
-                        icon: Icon(
-                          isListening
-                              ? Icons.stop_circle_outlined
-                              : Icons.mic_rounded,
-                        ),
-                      ),
-                    ],
-                  ),
                   border: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(20),
                     borderSide: const BorderSide(color: AppColors.border),
@@ -375,99 +409,27 @@ class _InputEnergyHubCardState extends State<_InputEnergyHubCard> {
                   ),
                   focusedBorder: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(20),
-                    borderSide: const BorderSide(
-                      color: AppColors.primarySoft,
-                      width: 1.2,
+                    borderSide: BorderSide(
+                      color: AppColors.primary.withValues(alpha: 0.25),
                     ),
                   ),
                 ),
               ),
-              if (_imagePath != null) ...[
-                const SizedBox(height: 12),
-                ClipRRect(
-                  borderRadius: BorderRadius.circular(18),
-                  child: Image.file(
-                    File(_imagePath!),
-                    height: 160,
-                    width: double.infinity,
-                    fit: BoxFit.cover,
-                  ),
-                ),
-                const SizedBox(height: 10),
-                Wrap(
-                  spacing: 8,
-                  runSpacing: 8,
-                  children: [
-                    InfoChip(
-                      label: _sourceLabel(_sourceType),
-                      icon: Icons.auto_awesome_rounded,
-                    ),
-                    OutlinedButton.icon(
-                      onPressed: controller.isBusy
-                          ? null
-                          : () {
-                              setState(() {
-                                _imagePath = null;
-                                if (_sourceType == SourceType.camera ||
-                                    _sourceType == SourceType.album ||
-                                    _sourceType == SourceType.shareImage) {
-                                  _sourceType = SourceType.manualText;
-                                }
-                              });
-                            },
-                      icon: const Icon(Icons.image_not_supported_outlined),
-                      label: const Text('移除图片'),
-                    ),
-                  ],
-                ),
-              ],
-              const SizedBox(height: 12),
+              const SizedBox(height: 8),
               Row(
                 children: [
                   Expanded(
-                    child: FilledButton.icon(
+                    child: _HomePrimaryButton(
+                      label: controller.isBusy
+                          ? '正在解析通知…'
+                          : hasText
+                          ? '解析这段通知'
+                          : '输入通知后解析',
+                      icon: Icons.auto_awesome_rounded,
                       onPressed: controller.isBusy || isListening || !hasText
                           ? null
                           : _submitTextOnly,
-                      icon: const Icon(Icons.auto_awesome_rounded),
-                      label: Text(
-                        controller.isBusy
-                            ? '正在解析通知…'
-                            : hasText
-                            ? '解析这段通知'
-                            : '输入通知后解析',
-                      ),
                     ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 10),
-              Wrap(
-                spacing: 8,
-                runSpacing: 8,
-                children: [
-                  OutlinedButton.icon(
-                    onPressed: controller.isBusy ? null : () => _pickAlbum(),
-                    icon: const Icon(Icons.photo_library_outlined),
-                    label: const Text('相册'),
-                  ),
-                  OutlinedButton.icon(
-                    onPressed: controller.isBusy ? null : _openLiveCamera,
-                    icon: const Icon(Icons.photo_camera_outlined),
-                    label: const Text('拍照'),
-                  ),
-                  OutlinedButton.icon(
-                    onPressed: controller.isBusy
-                        ? null
-                        : isListening
-                        ? _stopVoice
-                        : _startVoice,
-                    icon: Icon(
-                      isListening
-                          ? Icons.stop_circle_outlined
-                          : Icons.mic_none_rounded,
-                    ),
-                    label: Text(isListening ? '停止语音' : '语音输入'),
                   ),
                 ],
               ),
@@ -476,35 +438,6 @@ class _InputEnergyHubCardState extends State<_InputEnergyHubCard> {
         );
       },
     );
-  }
-
-  String _sourceLabel(SourceType type) {
-    switch (type) {
-      case SourceType.camera:
-        return '拍照导入';
-      case SourceType.album:
-        return '相册导入';
-      case SourceType.voice:
-        return '语音转写';
-      case SourceType.clipboard:
-        return '剪贴板导入';
-      case SourceType.shareImage:
-        return '分享图片';
-      case SourceType.shareText:
-        return '分享文本';
-      case SourceType.manualText:
-        return '手动输入';
-    }
-  }
-
-  Future<void> _pickAlbum() async {
-    final picked = await controller.pickImage(SourceType.album);
-    if (picked == null) return;
-    setState(() {
-      _imagePath = picked;
-      _sourceType = SourceType.album;
-    });
-    await _submit();
   }
 
   Future<void> _openLiveCamera() async {
@@ -582,42 +515,132 @@ class _CaptureEntryCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Material(
+    return WeavingCard(
       color: Colors.white.withValues(alpha: 0.52),
-      borderRadius: BorderRadius.circular(18),
-      child: InkWell(
-        borderRadius: BorderRadius.circular(18),
-        onTap: enabled ? onTap : null,
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-          child: Row(
-            children: [
-              Container(
-                width: 68,
-                height: 68,
-                decoration: BoxDecoration(
-                  color: AppColors.primary.withValues(alpha: 0.12),
-                  borderRadius: BorderRadius.circular(999),
-                ),
-                child: const Icon(
-                  Icons.photo_camera_rounded,
-                  size: 38,
-                  color: AppColors.primary,
-                ),
+      onTap: enabled ? onTap : null,
+      interactionStyle: WeavingInteractionStyle.timelineSlide,
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+        child: Row(
+          children: [
+            Container(
+              width: 68,
+              height: 68,
+              decoration: BoxDecoration(
+                color: AppColors.primary.withValues(alpha: 0.12),
+                borderRadius: BorderRadius.circular(999),
               ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Text(
-                  '拍照识别',
-                  textAlign: TextAlign.center,
-                  style: Theme.of(context).textTheme.displayLarge?.copyWith(
-                    fontSize: 28,
-                    height: 1.15,
+              child: const Icon(
+                Icons.photo_camera_rounded,
+                size: 38,
+                color: AppColors.primary,
+              ),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Text(
+                '拍照识别',
+                textAlign: TextAlign.center,
+                style: Theme.of(
+                  context,
+                ).textTheme.displayLarge?.copyWith(fontSize: 28, height: 1.15),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _RoundInputIcon extends StatelessWidget {
+  const _RoundInputIcon({
+    required this.icon,
+    required this.background,
+    required this.onPressed,
+  });
+
+  final IconData icon;
+  final Color background;
+  final VoidCallback? onPressed;
+
+  @override
+  Widget build(BuildContext context) {
+    return SizedBox(
+      width: 48,
+      height: 48,
+      child: Center(
+        child: Material(
+          color: background,
+          shape: const CircleBorder(),
+          child: InkWell(
+            customBorder: const CircleBorder(),
+            onTap: onPressed,
+            child: SizedBox(
+              width: 34,
+              height: 34,
+              child: Icon(icon, size: 18, color: AppColors.text),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _VoiceInputButton extends StatelessWidget {
+  const _VoiceInputButton({
+    required this.isListening,
+    required this.elapsed,
+    required this.onPressed,
+  });
+
+  final bool isListening;
+  final Duration elapsed;
+  final VoidCallback? onPressed;
+
+  @override
+  Widget build(BuildContext context) {
+    return Semantics(
+      button: true,
+      label: isListening ? '结束语音识别' : '语音识别',
+      child: SizedBox(
+        width: 48,
+        height: 48,
+        child: Stack(
+          clipBehavior: Clip.none,
+          alignment: Alignment.center,
+          children: [
+            _RoundInputIcon(
+              icon: Icons.mic_rounded,
+              background: isListening
+                  ? const Color(0xFF76D672)
+                  : AppColors.mint.withValues(alpha: 0.86),
+              onPressed: onPressed,
+            ),
+            if (isListening)
+              Positioned(
+                right: 0,
+                top: 0,
+                child: Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 5,
+                    vertical: 2,
+                  ),
+                  decoration: BoxDecoration(
+                    color: Colors.white.withValues(alpha: 0.96),
+                    borderRadius: BorderRadius.circular(999),
+                  ),
+                  child: Text(
+                    '${elapsed.inSeconds}s',
+                    style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                      color: AppColors.primary,
+                      fontWeight: FontWeight.w700,
+                    ),
                   ),
                 ),
               ),
-            ],
-          ),
+          ],
         ),
       ),
     );
@@ -641,11 +664,14 @@ class _PendingReviewCard extends StatelessWidget {
     final sourceLabel = notice.source.label.trim().isEmpty
         ? '待确认'
         : notice.source.label;
-    final confidence = '${(notice.confidence * 100).round().clamp(0, 100)}%';
-    final summary = _buildSummary();
+    final confidence = '${(notice.confidence * 100).toInt().clamp(0, 100)}%';
+    final summary = buildReviewPrompt(
+      notice,
+      buildReviewValidationIssues(notice),
+    );
 
     return WeavingCard(
-      color: Colors.white.withValues(alpha: 0.92),
+      color: AppColors.surfaceWarm,
       onTap: onEdit,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -654,22 +680,37 @@ class _PendingReviewCard extends StatelessWidget {
             label: sourceLabel,
             icon: Icons.auto_awesome_rounded,
             backgroundColor: AppColors.coral,
+            contentColor: const Color(0xFF9E3F42),
           ),
-          const SizedBox(height: 12),
-          Text('我整理出了这些信息', style: Theme.of(context).textTheme.headlineMedium),
+          const SizedBox(height: 8),
+          Text(
+            '我整理出了这些信息',
+            style: Theme.of(context).textTheme.headlineLarge?.copyWith(
+              fontSize: 21,
+              height: 27 / 21,
+              fontWeight: FontWeight.w800,
+              color: AppColors.primary,
+            ),
+          ),
           if (controller.pendingNotices.length > 1) ...[
-            const SizedBox(height: 10),
+            const SizedBox(height: 8),
             InfoChip(
               label: '还有 ${controller.pendingNotices.length} 条待确认',
               icon: Icons.notifications_active_rounded,
               backgroundColor: AppColors.gold,
+              contentColor: const Color(0xFF9E3F42),
             ),
           ],
-          const SizedBox(height: 12),
-          _ReviewField(label: '事项', value: notice.title),
+          const SizedBox(height: 8),
+          _ReviewField(
+            label: '事项',
+            value: notice.title.trim().isEmpty ? '待确认安排' : notice.title,
+          ),
           _ReviewField(
             label: '时间',
-            value: ZhishiDateUtils.formatDateTime(notice.startTimeIso),
+            value: (notice.startTimeIso ?? '').trim().isEmpty
+                ? '请先检查时间'
+                : notice.startTimeIso!.trim(),
           ),
           _ReviewField(
             label: '地点',
@@ -684,26 +725,27 @@ class _PendingReviewCard extends StatelessWidget {
               label: '有 $conflictCount 条相近时间安排',
               icon: Icons.notifications_active_rounded,
               backgroundColor: AppColors.gold,
+              contentColor: const Color(0xFF9E3F42),
             ),
           ],
-          const SizedBox(height: 12),
+          const SizedBox(height: 8),
           Text(
             summary,
-            style: const TextStyle(color: AppColors.muted, height: 1.45),
+            style: Theme.of(
+              context,
+            ).textTheme.bodyMedium?.copyWith(color: AppColors.muted),
           ),
-          const SizedBox(height: 12),
+          const SizedBox(height: 8),
           WeavingCard(
             color: AppColors.coral,
-            padding: const EdgeInsets.all(14),
-            child: const Text(
+            child: Text(
               '如果还有歧义，可以先进入校验页修改后再加入时间线。',
-              style: TextStyle(
-                color: AppColors.primary,
-                fontWeight: FontWeight.w700,
-              ),
+              style: Theme.of(
+                context,
+              ).textTheme.labelMedium?.copyWith(color: const Color(0xFF9E3F42)),
             ),
           ),
-          const SizedBox(height: 12),
+          const SizedBox(height: 8),
           WeavingCard(
             color: AppColors.primarySoft,
             onTap: onEdit,
@@ -712,18 +754,20 @@ class _PendingReviewCard extends StatelessWidget {
                 Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
-                    children: const [
+                    children: [
                       Text(
                         '进入解析校验页',
-                        style: TextStyle(
+                        style: Theme.of(context).textTheme.bodyLarge?.copyWith(
                           color: AppColors.primary,
-                          fontWeight: FontWeight.w800,
+                          fontWeight: FontWeight.w700,
                         ),
                       ),
-                      SizedBox(height: 3),
+                      const SizedBox(height: 3),
                       Text(
                         '逐项核对标题、时间、地点后再写入',
-                        style: TextStyle(color: AppColors.muted, fontSize: 12),
+                        style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                          color: AppColors.muted,
+                        ),
                       ),
                     ],
                   ),
@@ -735,26 +779,22 @@ class _PendingReviewCard extends StatelessWidget {
               ],
             ),
           ),
-          const SizedBox(height: 12),
+          const SizedBox(height: 8),
           Row(
             children: [
               Expanded(
-                child: FilledButton.icon(
-                  onPressed: () => controller.confirmNotice(notice),
-                  icon: const Icon(Icons.check_circle_rounded),
-                  label: const Text('确认加入日程'),
+                child: _HomePrimaryButton(
+                  label: '确认加入日程',
+                  icon: Icons.check_circle_rounded,
+                  onPressed: () => controller.confirmNoticeWithTransfer(notice),
                 ),
               ),
               const SizedBox(width: 10),
               SizedBox(
                 width: 128,
-                child: FilledButton(
+                child: _HomePrimaryButton(
+                  label: '取消',
                   onPressed: () => controller.discardNotice(notice),
-                  style: FilledButton.styleFrom(
-                    backgroundColor: Colors.white,
-                    foregroundColor: AppColors.primary,
-                  ),
-                  child: const Text('取消'),
                 ),
               ),
             ],
@@ -762,21 +802,6 @@ class _PendingReviewCard extends StatelessWidget {
         ],
       ),
     );
-  }
-
-  String _buildSummary() {
-    final candidates = <String?>[
-      notice.description,
-      notice.source.rawText,
-      notice.source.ocrText,
-    ];
-    for (final candidate in candidates) {
-      final text = candidate?.trim();
-      if (text != null && text.isNotEmpty) {
-        return text;
-      }
-    }
-    return '如果还有歧义，可以先进入校验页修改后再加入时间线。';
   }
 }
 
@@ -790,24 +815,23 @@ class _ReviewField extends StatelessWidget {
   Widget build(BuildContext context) {
     return Container(
       width: double.infinity,
-      margin: const EdgeInsets.only(bottom: 10),
+      margin: const EdgeInsets.only(bottom: 8),
       padding: const EdgeInsets.all(13),
       decoration: BoxDecoration(
         color: Colors.white.withValues(alpha: 0.5),
-        borderRadius: BorderRadius.circular(16),
+        borderRadius: BorderRadius.circular(12),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(label, style: const TextStyle(color: AppColors.muted)),
-          const SizedBox(height: 4),
           Text(
-            value,
-            style: const TextStyle(
-              color: AppColors.text,
-              fontWeight: FontWeight.w700,
-            ),
+            label,
+            style: Theme.of(
+              context,
+            ).textTheme.labelMedium?.copyWith(color: AppColors.muted),
           ),
+          const SizedBox(height: 4),
+          Text(value, style: Theme.of(context).textTheme.bodyLarge),
         ],
       ),
     );
@@ -822,11 +846,56 @@ class _RecentRecognitionCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return WeavingCard(
-      color: Colors.white.withValues(alpha: 0.9),
       child: Text(
         summary,
-        style: const TextStyle(color: AppColors.muted, height: 1.5),
+        style: Theme.of(
+          context,
+        ).textTheme.bodyLarge?.copyWith(color: AppColors.muted),
       ),
+    );
+  }
+}
+
+class _HomePrimaryButton extends StatelessWidget {
+  const _HomePrimaryButton({
+    required this.label,
+    required this.onPressed,
+    this.icon,
+  });
+
+  final String label;
+  final VoidCallback? onPressed;
+  final IconData? icon;
+
+  @override
+  Widget build(BuildContext context) {
+    final style = FilledButton.styleFrom(
+      minimumSize: const Size.fromHeight(50),
+      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+      shape: const StadiumBorder(),
+      backgroundColor: AppColors.primary,
+      foregroundColor: Colors.white,
+      disabledBackgroundColor: AppColors.primary.withValues(alpha: 0.45),
+      disabledForegroundColor: Colors.white.withValues(alpha: 0.75),
+      textStyle: const TextStyle(
+        fontFamily: 'Manrope',
+        fontSize: 15,
+        height: 20 / 15,
+        fontWeight: FontWeight.w700,
+      ),
+    );
+    if (icon == null) {
+      return FilledButton(
+        onPressed: onPressed,
+        style: style,
+        child: Text(label),
+      );
+    }
+    return FilledButton.icon(
+      onPressed: onPressed,
+      style: style,
+      icon: Icon(icon, size: 17),
+      label: Text(label),
     );
   }
 }

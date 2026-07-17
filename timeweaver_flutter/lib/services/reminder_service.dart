@@ -121,7 +121,7 @@ class ReminderService {
       }
     }
     candidates.sort();
-    if (candidates.isEmpty) return '暂无即将触发的本地提醒';
+    if (candidates.isEmpty) return '暂无即将触发的提醒';
     return ZhishiDateUtils.relativeReminder(candidates.first);
   }
 
