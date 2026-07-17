@@ -7,7 +7,9 @@ import '../app.dart';
 import '../models/event_item.dart';
 import '../models/inbox_message.dart';
 import '../models/source_info.dart';
+import '../models/user_insight.dart';
 import '../services/api_config.dart';
+import '../services/user_insight_service.dart';
 import '../utils/date_utils.dart';
 import '../widgets/weaving_widgets.dart';
 
@@ -2047,6 +2049,15 @@ class _AchievementsPage extends StatelessWidget {
     final confirmedCount = controller.confirmedEvents.length;
     final reminderCount = controller.scheduledReminderCount;
     final pendingCount = controller.pendingNotices.length;
+    final insights = const UserInsightService().analyze(
+      preference: controller.preference,
+      confirmedEvents: controller.confirmedEvents,
+      pendingCount: pendingCount,
+      scheduledReminderCount: reminderCount,
+    );
+    final nextAchievement = insights.achievements
+        .where((achievement) => !achievement.isUnlocked)
+        .firstOrNull;
     return ListView(
       padding: const EdgeInsets.fromLTRB(16, 10, 16, 120),
       children: [
@@ -2066,6 +2077,17 @@ class _AchievementsPage extends StatelessWidget {
             ),
           ],
         ),
+        const SizedBox(height: 10),
+        _DetailInfoCard(
+          title: '成就进度',
+          value:
+              '${insights.unlockedAchievementCount}/${insights.achievements.length} 已解锁',
+          summary: '所有状态均由当前账号的个人资料与真实历史事项实时计算。',
+        ),
+        const SizedBox(height: 10),
+        const _DetailSectionHeader(title: '成就勋章'),
+        const SizedBox(height: 6),
+        _AchievementStatusGrid(achievements: insights.achievements),
         const SizedBox(height: 10),
         const _DetailSectionHeader(title: '记录概览'),
         const SizedBox(height: 6),
@@ -2128,14 +2150,158 @@ class _AchievementsPage extends StatelessWidget {
           ),
         ),
         const SizedBox(height: 10),
-        const _DetailInfoCard(
+        _DetailInfoCard(
           title: '下一步建议',
-          value: '持续整理',
-          summary: '继续把讲座、会议和群通知转为时间线，保持记录可检索、可提醒。',
+          value: nextAchievement?.title ?? '全部达成',
+          summary: nextAchievement?.progressLabel ?? '当前账号已解锁全部成就。',
         ),
       ],
     );
   }
+}
+
+class _AchievementStatusGrid extends StatelessWidget {
+  const _AchievementStatusGrid({required this.achievements});
+
+  final List<UserAchievement> achievements;
+
+  @override
+  Widget build(BuildContext context) {
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final itemWidth = (constraints.maxWidth - 10) / 2;
+        return Wrap(
+          spacing: 10,
+          runSpacing: 10,
+          children: achievements
+              .map(
+                (achievement) => SizedBox(
+                  width: itemWidth,
+                  height: 196,
+                  child: _AchievementStatusCard(achievement: achievement),
+                ),
+              )
+              .toList(),
+        );
+      },
+    );
+  }
+}
+
+class _AchievementStatusCard extends StatelessWidget {
+  const _AchievementStatusCard({required this.achievement});
+
+  final UserAchievement achievement;
+
+  @override
+  Widget build(BuildContext context) {
+    final visual = _achievementVisual(achievement.id);
+    final unlocked = achievement.isUnlocked;
+    return WeavingCard(
+      color: unlocked ? visual.color : AppColors.surfaceLowest,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Container(
+                width: 36,
+                height: 36,
+                decoration: BoxDecoration(
+                  color: Colors.white.withValues(alpha: 0.52),
+                  shape: BoxShape.circle,
+                ),
+                child: Icon(
+                  visual.icon,
+                  size: 18,
+                  color: unlocked ? AppColors.primary : AppColors.muted,
+                ),
+              ),
+              const Spacer(),
+              Icon(
+                unlocked ? Icons.check_circle_rounded : Icons.lock_rounded,
+                size: 19,
+                color: unlocked ? AppColors.primary : AppColors.muted,
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          Text(
+            achievement.title,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: Theme.of(context).textTheme.labelMedium?.copyWith(
+              color: AppColors.text,
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+          const SizedBox(height: 2),
+          Text(
+            achievement.description,
+            maxLines: 2,
+            overflow: TextOverflow.ellipsis,
+            style: Theme.of(
+              context,
+            ).textTheme.labelSmall?.copyWith(color: AppColors.muted),
+          ),
+          const Spacer(),
+          ClipRRect(
+            borderRadius: BorderRadius.circular(3),
+            child: LinearProgressIndicator(
+              value: achievement.progress,
+              minHeight: 5,
+              backgroundColor: AppColors.surfaceWarm,
+              valueColor: AlwaysStoppedAnimation<Color>(
+                unlocked ? AppColors.primary : AppColors.coral,
+              ),
+            ),
+          ),
+          const SizedBox(height: 6),
+          Text(
+            unlocked && achievement.unlockedAt != null
+                ? '已解锁 · ${_shortDate(achievement.unlockedAt!)}'
+                : unlocked
+                ? '已解锁 · ${achievement.progressLabel}'
+                : achievement.progressLabel,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: Theme.of(context).textTheme.labelSmall?.copyWith(
+              color: unlocked ? AppColors.primary : AppColors.muted,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+({IconData icon, Color color}) _achievementVisual(String id) {
+  return switch (id) {
+    'first_weave' => (icon: Icons.auto_graph_rounded, color: AppColors.gold),
+    'timeline_keeper' => (icon: Icons.timeline_rounded, color: AppColors.coral),
+    'reminder_guard' => (
+      icon: Icons.notifications_active_rounded,
+      color: AppColors.primarySoft,
+    ),
+    'multi_source' => (icon: Icons.collections_rounded, color: AppColors.gold),
+    'location_ready' => (
+      icon: Icons.location_on_rounded,
+      color: AppColors.primarySoft,
+    ),
+    'campus_profile' => (icon: Icons.badge_rounded, color: AppColors.coral),
+    'active_days' => (
+      icon: Icons.calendar_month_rounded,
+      color: AppColors.gold,
+    ),
+    _ => (icon: Icons.category_rounded, color: AppColors.surfaceWarm),
+  };
+}
+
+String _shortDate(DateTime date) {
+  final month = date.month.toString().padLeft(2, '0');
+  final day = date.day.toString().padLeft(2, '0');
+  return '${date.year}-$month-$day';
 }
 
 class _PreferencesPage extends StatelessWidget {
@@ -3518,112 +3684,16 @@ class _PersonaPage extends StatelessWidget {
 
   final AppController controller;
 
-  _PersonaSummary _buildPersona() {
-    final confirmed = controller.confirmedEvents.length;
-    final pending = controller.pendingNotices.length;
-    final reminders = controller.scheduledReminderCount;
-    final confirmedItems = controller.confirmedEvents;
-    if (confirmed + pending < 3) {
-      return const _PersonaSummary(
-        title: '画像生成中',
-        description: '继续确认时间线记录后，系统会生成更准确的使用偏好参考。',
-        tags: ['资料不足'],
-        evidence: ['当前可用记录较少'],
-      );
-    }
-
-    final tags = <String>[];
-    final evidence = <String>[];
-    final sourceLabels = confirmedItems
-        .map((event) => event.source.label)
-        .toList();
-    final imageSourceCount = sourceLabels
-        .where(
-          (label) =>
-              label.contains('图片') ||
-              label.contains('相册') ||
-              label.contains('拍摄'),
-        )
-        .length;
-    final textSourceCount = sourceLabels
-        .where(
-          (label) =>
-              label.contains('文本') ||
-              label.contains('剪贴板') ||
-              label.contains('手动') ||
-              label.contains('分享'),
-        )
-        .length;
-    final locationReadyCount = confirmedItems
-        .where(
-          (event) =>
-              (event.location?.trim().isNotEmpty ?? false) &&
-              event.location?.trim() != '无地点',
-        )
-        .length;
-    final locationCompleteRate = confirmedItems.isEmpty
-        ? 0.0
-        : locationReadyCount / confirmedItems.length;
-    final now = DateTime.now();
-    final expiredItemCount = confirmedItems
-        .where((event) => event.startTime?.isBefore(now) ?? false)
-        .length;
-
-    if (reminders >= 3 || (confirmed > 0 && reminders * 2 >= confirmed)) {
-      tags.add('提醒依赖型');
-      evidence.add('已有 $reminders 项事项挂载后续提醒');
-    }
-    if (confirmed >= 5) {
-      tags.add('时间线沉淀型');
-      evidence.add('已确认 $confirmed 条时间线记录');
-    }
-    if (expiredItemCount > 0) {
-      tags.add('过期事项沉淀');
-      evidence.add('时间线中有 $expiredItemCount 条记录已过期，可作为作息与提醒策略参考');
-    }
-    if (pending >= 3 || pending > confirmed) {
-      tags.add('待确认偏多');
-      evidence.add('仍有 $pending 条事项等待确认或补充');
-    }
-    if (locationCompleteRate >= 0.7 && confirmedItems.isNotEmpty) {
-      tags.add('地点信息完整');
-      evidence.add('多数已确认记录包含地点信息');
-    }
-    if (imageSourceCount > textSourceCount && imageSourceCount > 0) {
-      tags.add('图片导入常用');
-      evidence.add('常通过图片入口导入校园通知');
-    } else if (textSourceCount > 0) {
-      tags.add('文本整理常用');
-      evidence.add('常通过文本、剪贴板或系统分享导入通知');
-    }
-    if (tags.isEmpty) {
-      tags.add('稳态整理');
-      evidence.add('当前记录、提醒与确认状态较均衡');
-    }
-
-    final title = tags.contains('过期事项沉淀')
-        ? '提醒节奏需要回看'
-        : tags.contains('待确认偏多')
-        ? '待确认事项需要回看'
-        : tags.contains('提醒依赖型')
-        ? '提醒辅助型'
-        : tags.contains('时间线沉淀型')
-        ? '时间线整理型'
-        : '稳态整理型';
-
-    return _PersonaSummary(
-      title: title,
-      description: expiredItemCount > 0
-          ? '根据已确认记录、提醒设置、导入来源与过期事项动态生成，帮助你回看自己的时间管理节奏。'
-          : '根据已确认记录、提醒设置和导入来源动态生成，仅作为使用偏好参考。',
-      tags: tags.toSet().take(4).toList(),
-      evidence: evidence.toSet().take(5).toList(),
-    );
-  }
-
   @override
   Widget build(BuildContext context) {
-    final persona = _buildPersona();
+    final persona = const UserInsightService()
+        .analyze(
+          preference: controller.preference,
+          confirmedEvents: controller.confirmedEvents,
+          pendingCount: controller.pendingNotices.length,
+          scheduledReminderCount: controller.scheduledReminderCount,
+        )
+        .persona;
     return ListView(
       padding: const EdgeInsets.fromLTRB(16, 10, 16, 120),
       children: [
@@ -3697,20 +3767,6 @@ class _PersonaPage extends StatelessWidget {
       ],
     );
   }
-}
-
-class _PersonaSummary {
-  const _PersonaSummary({
-    required this.title,
-    required this.description,
-    required this.tags,
-    required this.evidence,
-  });
-
-  final String title;
-  final String description;
-  final List<String> tags;
-  final List<String> evidence;
 }
 
 class _AgentCheckupPage extends StatelessWidget {

@@ -19,17 +19,18 @@
 | 系统日历 | 是 | `integration_service.dart` | 真实打开 Google Calendar Intent；模拟器无账号 | 最终保存需实体 Android/iPhone/iPad |
 | 地图导航 | 是 | `integration_service.dart` | 分平台 URI 已实现 | 实体设备地图 App |
 | PDF / PNG / JPG 导出 | 是 | `timeline_export_service.dart` | 真实文件生成代码、构建和入口通过 | iOS 文件打开/分享 |
-| 通知中心、历史、统计、成就 | 是 | `profile_page.dart` | 全路由回归通过 | 大数据量和 iPad 宽屏 |
-| 智能体中心、体检、画像 | 是 | `profile_page.dart` | 真实状态和全路由回归通过 | 大数据量 |
+| 通知中心、历史、统计、成就 | 是 | `profile_page.dart`、`user_insight_service.dart` | 成就锁定、真实进度与历史解锁日期规则测试通过 | 大数据量和 iPad 宽屏 |
+| 智能体中心、体检、画像 | 是 | `profile_page.dart`、`user_insight_service.dart` | 画像结合当前账号资料与历史事项实时计算，专项规则测试通过 | 大数据量与不同账号数据隔离人工验收 |
 | 偏好、隐私、运行状态、数据空间 | 是 | `profile_page.dart`、`app.dart` | 真实偏好与运行状态回归通过 | iOS 权限状态 |
 | iOS no-codesign 云编译 | 是 | `ios/*`、`codemagic.yaml`、GitHub Actions | GitHub Actions 全链路通过 | 正式签名、TestFlight、iPhone/iPad |
 
 ## 验证结果
 
 - `flutter analyze`：通过，`No issues found`。
-- `flutter test`：通过，23 项测试全部通过。
+- `flutter test`：通过，27 项测试全部通过；画像与成就专项测试覆盖空账号、资料不足、画像组合、真实提醒排程和动态解锁边界。
 - `flutter build apk --debug`：通过，并已覆盖安装到 `emulator-5554`。
 - 真实 vivo 解析、真实 vivo ASR、相机预览、clarification 补齐、时间线写入、重启持久化和删除均已在模拟器执行。
+- 用户画像与成就页已在 `emulator-5554` 使用现有账号真实数据验收：画像资料不足边界、1/8 成就解锁、真实首次达成日期和提醒排程进度显示正常，未发现布局溢出或应用崩溃。
 - 测试过程中创建的 `Student club activity` 已真实删除，测试账号未残留该记录。
 
 ## 未完成边界
