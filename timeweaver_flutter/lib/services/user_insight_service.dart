@@ -13,6 +13,7 @@ class UserInsightService {
     required List<EventItem> confirmedEvents,
     required int pendingCount,
     required int scheduledReminderCount,
+    Map<String, DateTime> unlockedAtById = const {},
     DateTime? now,
   }) {
     final analysisTime = now ?? DateTime.now();
@@ -27,6 +28,7 @@ class UserInsightService {
       achievements: _buildAchievements(
         preference: preference,
         confirmedEvents: confirmedEvents,
+        unlockedAtById: unlockedAtById,
       ),
     );
   }
@@ -169,6 +171,7 @@ class UserInsightService {
   List<UserAchievement> _buildAchievements({
     required UserPreference preference,
     required List<EventItem> confirmedEvents,
+    required Map<String, DateTime> unlockedAtById,
   }) {
     final chronologicalEvents = [...confirmedEvents]
       ..sort(
@@ -203,7 +206,11 @@ class UserInsightService {
         current: confirmedEvents.length,
         target: 1,
         progressLabel: '已确认 ${confirmedEvents.length}/1 条',
-        unlockedAt: _thresholdDate(chronologicalEvents, 1),
+        unlockedAt: _resolveUnlockDate(
+          unlockedAtById,
+          'first_weave',
+          _thresholdDate(chronologicalEvents, 1),
+        ),
       ),
       UserAchievement(
         id: 'timeline_keeper',
@@ -212,7 +219,11 @@ class UserInsightService {
         current: confirmedEvents.length,
         target: 10,
         progressLabel: '已确认 ${confirmedEvents.length}/10 条',
-        unlockedAt: _thresholdDate(chronologicalEvents, 10),
+        unlockedAt: _resolveUnlockDate(
+          unlockedAtById,
+          'timeline_keeper',
+          _thresholdDate(chronologicalEvents, 10),
+        ),
       ),
       UserAchievement(
         id: 'reminder_guard',
@@ -221,7 +232,11 @@ class UserInsightService {
         current: scheduledEvents.length,
         target: 3,
         progressLabel: '已排程 ${scheduledEvents.length}/3 条事项',
-        unlockedAt: _thresholdDate(scheduledEvents, 3),
+        unlockedAt: _resolveUnlockDate(
+          unlockedAtById,
+          'reminder_guard',
+          _thresholdDate(scheduledEvents, 3),
+        ),
       ),
       UserAchievement(
         id: 'multi_source',
@@ -230,10 +245,14 @@ class UserInsightService {
         current: sourceTypes.length,
         target: 3,
         progressLabel: '已使用 ${sourceTypes.length}/3 种来源',
-        unlockedAt: _distinctThresholdDate<SourceType>(
-          chronologicalEvents,
-          (event) => event.source.type,
-          3,
+        unlockedAt: _resolveUnlockDate(
+          unlockedAtById,
+          'multi_source',
+          _distinctThresholdDate<SourceType>(
+            chronologicalEvents,
+            (event) => event.source.type,
+            3,
+          ),
         ),
       ),
       UserAchievement(
@@ -243,7 +262,11 @@ class UserInsightService {
         current: locationEvents.length,
         target: 5,
         progressLabel: '地点完整 ${locationEvents.length}/5 条',
-        unlockedAt: _thresholdDate(locationEvents, 5),
+        unlockedAt: _resolveUnlockDate(
+          unlockedAtById,
+          'location_ready',
+          _thresholdDate(locationEvents, 5),
+        ),
       ),
       UserAchievement(
         id: 'campus_profile',
@@ -252,6 +275,7 @@ class UserInsightService {
         current: completedProfileFields,
         target: 6,
         progressLabel: '已完善 $completedProfileFields/6 项',
+        unlockedAt: unlockedAtById['campus_profile'],
       ),
       UserAchievement(
         id: 'active_days',
@@ -260,12 +284,16 @@ class UserInsightService {
         current: activeDays.length,
         target: 3,
         progressLabel: '已覆盖 ${activeDays.length}/3 个日期',
-        unlockedAt: _distinctThresholdDate<String>(chronologicalEvents, (
-          event,
-        ) {
-          final date = _eventTimestampOrNull(event);
-          return date == null ? null : '${date.year}-${date.month}-${date.day}';
-        }, 3),
+        unlockedAt: _resolveUnlockDate(
+          unlockedAtById,
+          'active_days',
+          _distinctThresholdDate<String>(chronologicalEvents, (event) {
+            final date = _eventTimestampOrNull(event);
+            return date == null
+                ? null
+                : '${date.year}-${date.month}-${date.day}';
+          }, 3),
+        ),
       ),
       UserAchievement(
         id: 'category_explorer',
@@ -274,12 +302,14 @@ class UserInsightService {
         current: eventTypes.length,
         target: 3,
         progressLabel: '已覆盖 ${eventTypes.length}/3 种类型',
-        unlockedAt: _distinctThresholdDate<String>(chronologicalEvents, (
-          event,
-        ) {
-          final type = event.eventType.trim();
-          return type.isEmpty ? null : type;
-        }, 3),
+        unlockedAt: _resolveUnlockDate(
+          unlockedAtById,
+          'category_explorer',
+          _distinctThresholdDate<String>(chronologicalEvents, (event) {
+            final type = event.eventType.trim();
+            return type.isEmpty ? null : type;
+          }, 3),
+        ),
       ),
     ];
   }
@@ -358,6 +388,14 @@ class UserInsightService {
   DateTime? _thresholdDate(List<EventItem> events, int target) {
     if (events.length < target) return null;
     return _eventTimestampOrNull(events[target - 1]);
+  }
+
+  DateTime? _resolveUnlockDate(
+    Map<String, DateTime> unlockedAtById,
+    String achievementId,
+    DateTime? derivedDate,
+  ) {
+    return unlockedAtById[achievementId] ?? derivedDate;
   }
 
   DateTime? _distinctThresholdDate<T>(

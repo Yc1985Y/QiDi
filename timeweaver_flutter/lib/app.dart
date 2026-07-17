@@ -7,11 +7,13 @@ import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
 
 import 'models/account_user.dart';
+import 'models/achievement_unlock_record.dart';
 import 'models/event_item.dart';
 import 'models/export_record.dart';
 import 'models/inbox_message.dart';
 import 'models/parsed_notice.dart';
 import 'models/source_info.dart';
+import 'models/user_insight.dart';
 import 'models/user_preference.dart';
 import 'pages/home_page.dart';
 import 'pages/login_page.dart';
@@ -30,6 +32,7 @@ import 'services/speech_service.dart';
 import 'services/storage_service.dart';
 import 'services/timeline_export_service.dart';
 import 'services/tts_service.dart';
+import 'services/user_insight_service.dart';
 import 'utils/date_utils.dart';
 import 'utils/validators.dart';
 import 'widgets/app_overlays.dart';
@@ -288,7 +291,8 @@ class AppController extends ChangeNotifier {
       ttsService = TtsService(),
       integrationService = IntegrationService(),
       shareReceiveService = ShareReceiveService(),
-      timelineExportService = TimelineExportService();
+      timelineExportService = TimelineExportService(),
+      userInsightService = const UserInsightService();
 
   final EventRepository repository;
   final AccountRepository accountRepository;
@@ -301,6 +305,7 @@ class AppController extends ChangeNotifier {
   final IntegrationService integrationService;
   final ShareReceiveService shareReceiveService;
   final TimelineExportService timelineExportService;
+  final UserInsightService userInsightService;
   final ImagePicker _imagePicker = ImagePicker();
   Timer? _voiceElapsedTimer;
   DateTime? _voiceStartedAt;
@@ -326,10 +331,12 @@ class AppController extends ChangeNotifier {
   List<ParsedNotice> allPendingNotices = [];
   List<InboxMessage> allInboxMessages = [];
   List<ExportRecord> allExportRecords = [];
+  List<AchievementUnlockRecord> allAchievementUnlocks = [];
   List<EventItem> events = [];
   List<ParsedNotice> pendingNotices = [];
   List<InboxMessage> inboxMessages = [];
   List<ExportRecord> exportRecords = [];
+  List<AchievementUnlockRecord> achievementUnlocks = [];
   UserPreference preference = const UserPreference();
   bool dataStoreReady = false;
   bool cameraPermissionReady = false;
@@ -354,6 +361,17 @@ class AppController extends ChangeNotifier {
   int get scheduledReminderCount =>
       reminderService.upcomingReminderCount(confirmedEvents);
 
+  UserInsightResult get userInsights => userInsightService.analyze(
+    preference: preference,
+    confirmedEvents: confirmedEvents,
+    pendingCount: pendingNotices.length,
+    scheduledReminderCount: scheduledReminderCount,
+    unlockedAtById: {
+      for (final record in achievementUnlocks)
+        record.achievementId: record.unlockedAt,
+    },
+  );
+
   Duration get voiceRecordingDuration => _voiceStartedAt == null
       ? Duration.zero
       : DateTime.now().difference(_voiceStartedAt!);
@@ -377,11 +395,13 @@ class AppController extends ChangeNotifier {
     preference = await repository.loadPreference();
     allInboxMessages = await repository.loadInboxMessages();
     allExportRecords = await repository.loadExportRecords();
+    allAchievementUnlocks = await repository.loadAchievementUnlocks();
     if (currentUser != null) {
       await _claimUnownedDataForAccount(currentUser!.account);
       preference = _applyCurrentUserToPreference(preference, currentUser);
     }
     _loadVisibleDataForCurrentAccount();
+    await _syncAchievementUnlocks(notifyInbox: false);
     dataStoreReady = true;
     await _refreshRuntimeStatus(notify: false);
     initializing = false;
@@ -644,6 +664,7 @@ class AppController extends ChangeNotifier {
     events = [event, ...events.where((item) => item.id != event.id)];
     await _saveScopedPendingNotices();
     await _saveScopedEvents();
+    await _syncAchievementUnlocks();
     try {
       await integrationService.addEventToCalendar(event);
       statusMessage = '已加入时间线，并打开系统日历';
@@ -728,6 +749,7 @@ class AppController extends ChangeNotifier {
         .map((item) => item.id == updated.id ? updated : item)
         .toList();
     await _saveScopedEvents();
+    await _syncAchievementUnlocks();
     statusMessage = '时间线事项已更新';
     await _pushInboxMessage(
       type: 'edited',
@@ -1058,6 +1080,7 @@ class AppController extends ChangeNotifier {
     await accountSessionService.saveCurrentUser(updated);
     preference = _applyCurrentUserToPreference(preference, updated);
     await repository.savePreference(preference);
+    await _syncAchievementUnlocks();
     errorMessage = null;
     statusMessage = '个人资料已更新';
     notifyListeners();
@@ -1082,6 +1105,7 @@ class AppController extends ChangeNotifier {
     }
     events = updated;
     await _saveScopedEvents();
+    await _syncAchievementUnlocks();
   }
 
   Future<void> clearPending() async {
@@ -1273,6 +1297,9 @@ class AppController extends ChangeNotifier {
     exportRecords = allExportRecords
         .where((item) => _matchesAccount(item.ownerAccount, account))
         .toList();
+    achievementUnlocks = allAchievementUnlocks
+        .where((item) => _matchesAccount(item.ownerAccount, account))
+        .toList();
   }
 
   bool _matchesAccount(String ownerAccount, String account) {
@@ -1331,12 +1358,65 @@ class AppController extends ChangeNotifier {
     await repository.saveExportRecords(allExportRecords);
   }
 
+  Future<void> _saveScopedAchievementUnlocks() async {
+    final account = currentAccountLabel;
+    final scopedRecords = achievementUnlocks
+        .map((item) => item.copyWith(ownerAccount: account))
+        .toList();
+    allAchievementUnlocks =
+        allAchievementUnlocks
+            .where((item) => !_matchesAccount(item.ownerAccount, account))
+            .toList()
+          ..addAll(scopedRecords);
+    await repository.saveAchievementUnlocks(allAchievementUnlocks);
+  }
+
+  Future<void> _syncAchievementUnlocks({bool notifyInbox = true}) async {
+    final account = currentAccountLabel;
+    if (account.isEmpty) return;
+    final existingIds = achievementUnlocks
+        .map((record) => record.achievementId)
+        .toSet();
+    final newlyUnlocked = userInsights.achievements
+        .where(
+          (achievement) =>
+              achievement.isUnlocked && !existingIds.contains(achievement.id),
+        )
+        .toList();
+    if (newlyUnlocked.isEmpty) return;
+
+    final now = DateTime.now();
+    achievementUnlocks = [
+      ...achievementUnlocks,
+      for (final achievement in newlyUnlocked)
+        AchievementUnlockRecord(
+          achievementId: achievement.id,
+          unlockedAtMillis:
+              (achievement.unlockedAt ?? now).millisecondsSinceEpoch,
+          ownerAccount: account,
+        ),
+    ];
+    await _saveScopedAchievementUnlocks();
+    if (!notifyInbox) return;
+
+    final titles = newlyUnlocked
+        .map((achievement) => achievement.title)
+        .join('、');
+    await _pushInboxMessage(
+      type: 'achievement_unlocked',
+      title: newlyUnlocked.length == 1 ? '解锁新成就' : '解锁多项成就',
+      summary: '已解锁：$titles。成就状态已保存到当前账号。',
+      status: '新解锁',
+    );
+  }
+
   Future<void> _enterAppWithUser(AccountUser user) async {
     currentUser = user;
     await accountSessionService.saveCurrentUser(user);
     await _claimUnownedDataForAccount(user.account);
     preference = _applyCurrentUserToPreference(preference, user);
     _loadVisibleDataForCurrentAccount();
+    await _syncAchievementUnlocks(notifyInbox: false);
     statusMessage = _buildInitialStatus();
     notifyListeners();
   }

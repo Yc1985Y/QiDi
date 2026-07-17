@@ -1,10 +1,13 @@
 import 'package:flutter_test/flutter_test.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import 'package:timeweaver_flutter/models/achievement_unlock_record.dart';
 import 'package:timeweaver_flutter/models/event_item.dart';
 import 'package:timeweaver_flutter/models/reminder_item.dart';
 import 'package:timeweaver_flutter/models/source_info.dart';
 import 'package:timeweaver_flutter/models/user_insight.dart';
 import 'package:timeweaver_flutter/models/user_preference.dart';
 import 'package:timeweaver_flutter/services/user_insight_service.dart';
+import 'package:timeweaver_flutter/services/storage_service.dart';
 
 void main() {
   const service = UserInsightService();
@@ -156,6 +159,51 @@ void main() {
       result.achievements.where((achievement) => achievement.isUnlocked),
       isEmpty,
     );
+  });
+
+  test('persisted achievement remains unlocked after source data changes', () {
+    final unlockedAt = DateTime(2026, 7, 16, 9);
+    final result = service.analyze(
+      preference: const UserPreference(),
+      confirmedEvents: const [],
+      pendingCount: 0,
+      scheduledReminderCount: 0,
+      unlockedAtById: {'first_weave': unlockedAt},
+      now: DateTime(2026, 7, 17),
+    );
+    final achievement = result.achievements.singleWhere(
+      (item) => item.id == 'first_weave',
+    );
+
+    expect(achievement.current, 0);
+    expect(achievement.isUnlocked, isTrue);
+    expect(achievement.progress, 1);
+    expect(achievement.unlockedAt, unlockedAt);
+  });
+
+  test('achievement unlock storage preserves account ownership', () async {
+    SharedPreferences.setMockInitialValues({});
+    final storage = StorageService();
+    final records = [
+      AchievementUnlockRecord(
+        achievementId: 'first_weave',
+        unlockedAtMillis: DateTime(2026, 7, 16).millisecondsSinceEpoch,
+        ownerAccount: 'account-a',
+      ),
+      AchievementUnlockRecord(
+        achievementId: 'campus_profile',
+        unlockedAtMillis: DateTime(2026, 7, 17).millisecondsSinceEpoch,
+        ownerAccount: 'account-b',
+      ),
+    ];
+
+    await storage.saveAchievementUnlocks(records);
+    final restored = await storage.loadAchievementUnlocks();
+
+    expect(restored, hasLength(2));
+    expect(restored.first.ownerAccount, 'account-a');
+    expect(restored.last.ownerAccount, 'account-b');
+    expect(restored.first.achievementId, 'first_weave');
   });
 }
 

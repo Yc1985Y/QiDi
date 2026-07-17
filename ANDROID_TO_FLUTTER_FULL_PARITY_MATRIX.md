@@ -22,7 +22,7 @@
 | 地图导航 | Android geo/map Intent | `integration_service.dart` | Android geo URI 与 iOS Apple Maps 分平台实现 | 源码和路由检查 | 实体设备地图 App |
 | PDF / PNG / JPG 导出 | `PlanComponents.kt` | `timeline_export_service.dart` | 三种格式均生成真实文件并记录导出审计 | Dart 测试、Android 构建和路由回归 | iOS 文件打开/分享 |
 | 通知中心 | `ProfileInboxModels.kt` | `inbox_message.dart`、`profile_page.dart` | 总览筛选、20 条列表、清空和策略入口已按源码组织 | 17 个 ProfileRoute 全路由回归 | iPad 宽屏视觉验收 |
-| 历史 / 统计 / 成就 | Profile summary/history models | `profile_page.dart`、`user_insight_service.dart` | 保留 Android 统计层级；新增成就由当前账号真实资料、历史事项、来源、地点和提醒排程动态计算 | 规则测试通过；空账号无预解锁 | 模拟器页面与 iPad 宽屏视觉验收 |
+| 历史 / 统计 / 成就 | Profile summary/history models | `profile_page.dart`、`user_insight_service.dart`、`achievement_unlock_record.dart` | 保留 Android 统计层级；成就由真实数据计算，首次解锁后按账号永久保存，并回流通知中心 | 规则、账号隔离、重启恢复和空账号边界通过 | iPad 宽屏视觉验收 |
 | 智能体中心 / 体检 | Profile checkup/tile models | `profile_page.dart` | 功能地图、系统入口、真实状态、评分和行动项已对齐 | 全路由回归 | iPad 宽屏视觉验收 |
 | 用户画像 | `ProfileStatusModels.kt` | `profile_page.dart`、`user_insight_service.dart` | 保留原标签优先级，并加入当前账号个人资料完整度、校园身份、事项类型和时间分布证据 | 资料不足与组合画像规则测试通过 | 大数据量和多账号人工验收 |
 | 设置 / 偏好 / 隐私 | `ProfileScreenModule.kt` | `profile_page.dart` | 风控、低置信度、提醒、地图、安全边界和隐私说明已按源码拆分 | 全路由回归，偏好真实持久化 | iOS 权限状态 |

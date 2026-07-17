@@ -35,9 +35,10 @@ class UserAchievement {
   final String progressLabel;
   final DateTime? unlockedAt;
 
-  bool get isUnlocked => current >= target;
+  bool get isUnlocked => unlockedAt != null || current >= target;
 
   double get progress {
+    if (isUnlocked) return 1;
     if (target <= 0) return 0;
     return (current / target).clamp(0.0, 1.0);
   }

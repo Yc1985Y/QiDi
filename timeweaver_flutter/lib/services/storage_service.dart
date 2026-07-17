@@ -2,6 +2,7 @@ import 'dart:convert';
 
 import 'package:shared_preferences/shared_preferences.dart';
 
+import '../models/achievement_unlock_record.dart';
 import '../models/event_item.dart';
 import '../models/export_record.dart';
 import '../models/inbox_message.dart';
@@ -14,6 +15,7 @@ class StorageService {
   static const _preferenceKey = 'timeweaver_preference_json';
   static const _inboxKey = 'timeweaver_inbox_json';
   static const _exportsKey = 'timeweaver_exports_json';
+  static const _achievementUnlocksKey = 'timeweaver_achievement_unlocks_json';
 
   Future<List<EventItem>> loadEvents() async {
     final prefs = await SharedPreferences.getInstance();
@@ -62,6 +64,20 @@ class StorageService {
         .toList();
   }
 
+  Future<List<AchievementUnlockRecord>> loadAchievementUnlocks() async {
+    final prefs = await SharedPreferences.getInstance();
+    final raw = prefs.getString(_achievementUnlocksKey);
+    if (raw == null || raw.isEmpty) return [];
+    final decoded = jsonDecode(raw) as List<dynamic>;
+    return decoded
+        .map(
+          (item) =>
+              AchievementUnlockRecord.fromJson(Map<String, dynamic>.from(item)),
+        )
+        .where((item) => item.achievementId.isNotEmpty)
+        .toList();
+  }
+
   Future<void> saveEvents(List<EventItem> events) async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setString(
@@ -99,6 +115,16 @@ class StorageService {
     );
   }
 
+  Future<void> saveAchievementUnlocks(
+    List<AchievementUnlockRecord> records,
+  ) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString(
+      _achievementUnlocksKey,
+      jsonEncode(records.map((item) => item.toJson()).toList()),
+    );
+  }
+
   Future<void> clearAll() async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.remove(_eventsKey);
@@ -106,5 +132,6 @@ class StorageService {
     await prefs.remove(_preferenceKey);
     await prefs.remove(_inboxKey);
     await prefs.remove(_exportsKey);
+    await prefs.remove(_achievementUnlocksKey);
   }
 }

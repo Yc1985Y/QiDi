@@ -1,3 +1,4 @@
+import '../models/achievement_unlock_record.dart';
 import '../models/event_item.dart';
 import '../models/export_record.dart';
 import '../models/inbox_message.dart';
@@ -23,6 +24,9 @@ class EventRepository {
   Future<List<ExportRecord>> loadExportRecords() =>
       _storageService.loadExportRecords();
 
+  Future<List<AchievementUnlockRecord>> loadAchievementUnlocks() =>
+      _storageService.loadAchievementUnlocks();
+
   Future<void> saveEvents(List<EventItem> events) =>
       _storageService.saveEvents(events);
 
@@ -37,4 +41,7 @@ class EventRepository {
 
   Future<void> saveExportRecords(List<ExportRecord> records) =>
       _storageService.saveExportRecords(records);
+
+  Future<void> saveAchievementUnlocks(List<AchievementUnlockRecord> records) =>
+      _storageService.saveAchievementUnlocks(records);
 }

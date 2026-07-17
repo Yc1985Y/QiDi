@@ -9,7 +9,6 @@ import '../models/inbox_message.dart';
 import '../models/source_info.dart';
 import '../models/user_insight.dart';
 import '../services/api_config.dart';
-import '../services/user_insight_service.dart';
 import '../utils/date_utils.dart';
 import '../widgets/weaving_widgets.dart';
 
@@ -2049,12 +2048,7 @@ class _AchievementsPage extends StatelessWidget {
     final confirmedCount = controller.confirmedEvents.length;
     final reminderCount = controller.scheduledReminderCount;
     final pendingCount = controller.pendingNotices.length;
-    final insights = const UserInsightService().analyze(
-      preference: controller.preference,
-      confirmedEvents: controller.confirmedEvents,
-      pendingCount: pendingCount,
-      scheduledReminderCount: reminderCount,
-    );
+    final insights = controller.userInsights;
     final nextAchievement = insights.achievements
         .where((achievement) => !achievement.isUnlocked)
         .firstOrNull;
@@ -3686,14 +3680,7 @@ class _PersonaPage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final persona = const UserInsightService()
-        .analyze(
-          preference: controller.preference,
-          confirmedEvents: controller.confirmedEvents,
-          pendingCount: controller.pendingNotices.length,
-          scheduledReminderCount: controller.scheduledReminderCount,
-        )
-        .persona;
+    final persona = controller.userInsights.persona;
     return ListView(
       padding: const EdgeInsets.fromLTRB(16, 10, 16, 120),
       children: [
@@ -4964,6 +4951,7 @@ String _inboxSectionTitle(InboxFilter filter) {
 }
 
 String _inboxTypeLabel(String type) {
+  if (_containsIgnoreCase(type, 'achievement')) return '成就解锁';
   if (_containsIgnoreCase(type, 'error')) return '错误反馈';
   if (_containsIgnoreCase(type, 'blocked')) return '风险拦截';
   if (_containsIgnoreCase(type, 'clarification')) return '待补充';
@@ -4974,6 +4962,9 @@ String _inboxTypeLabel(String type) {
 }
 
 IconData _inboxMessageIcon(String type, String status) {
+  if (_containsIgnoreCase(type, 'achievement')) {
+    return Icons.emoji_events_rounded;
+  }
   if (_containsIgnoreCase(type, 'error')) return Icons.security_rounded;
   if (_containsIgnoreCase(type, 'blocked')) return Icons.shield_rounded;
   if (_containsIgnoreCase(type, 'confirm')) return Icons.check_circle_rounded;
@@ -4986,6 +4977,7 @@ IconData _inboxMessageIcon(String type, String status) {
 }
 
 Color _inboxMessageBackground(String type, String status) {
+  if (_containsIgnoreCase(type, 'achievement')) return AppColors.gold;
   if (_containsIgnoreCase(type, 'error') ||
       _containsIgnoreCase(type, 'blocked')) {
     return AppColors.coral;
