@@ -27,6 +27,7 @@ import 'services/integration_service.dart';
 import 'services/parser_service.dart';
 import 'services/permission_service.dart';
 import 'services/reminder_service.dart';
+import 'services/schedule_intelligence_service.dart';
 import 'services/share_receive_service.dart';
 import 'services/speech_service.dart';
 import 'services/storage_service.dart';
@@ -286,6 +287,7 @@ class AppController extends ChangeNotifier {
       accountSessionService = AccountSessionService(),
       parserService = ParserService(),
       reminderService = ReminderService(),
+      scheduleIntelligenceService = const ScheduleIntelligenceService(),
       permissionService = PermissionService(),
       speechService = SpeechService(),
       ttsService = TtsService(),
@@ -299,6 +301,7 @@ class AppController extends ChangeNotifier {
   final AccountSessionService accountSessionService;
   final ParserService parserService;
   final ReminderService reminderService;
+  final ScheduleIntelligenceService scheduleIntelligenceService;
   final PermissionService permissionService;
   final SpeechService speechService;
   final TtsService ttsService;
@@ -310,6 +313,7 @@ class AppController extends ChangeNotifier {
   Timer? _voiceElapsedTimer;
   DateTime? _voiceStartedAt;
   int _parseOperationId = 0;
+  final Set<String> _confirmingNoticeIds = <String>{};
   String? _lastParseRawText;
   String? _lastParseImagePath;
   SourceType? _lastParseSourceType;
@@ -496,9 +500,22 @@ class AppController extends ChangeNotifier {
       if (operationId != _parseOperationId) return;
       loadingStage = 2;
       notifyListeners();
-      final notices = outcome.notices
+      final parsedNotices = outcome.notices
           .map((item) => item.copyWith(ownerAccount: currentAccountLabel))
           .toList();
+      final notices = <ParsedNotice>[];
+      var duplicateCount = 0;
+      for (final candidate in parsedNotices) {
+        final pendingDuplicate = scheduleIntelligenceService
+            .findPendingDuplicate(candidate, [...pendingNotices, ...notices]);
+        final confirmedDuplicate = scheduleIntelligenceService
+            .findConfirmedDuplicate(candidate, confirmedEvents);
+        if (pendingDuplicate != null || confirmedDuplicate != null) {
+          duplicateCount++;
+          continue;
+        }
+        notices.add(candidate);
+      }
       if (outcome.action == NoticeAction.ttsFeedback) {
         final speechText = outcome.speechText?.trim();
         if (speechText == null || speechText.isEmpty) {
@@ -514,6 +531,18 @@ class AppController extends ChangeNotifier {
           );
           await ttsService.speak(speechText);
         }
+      } else if (duplicateCount > 0 && notices.isEmpty) {
+        errorMessage = null;
+        statusMessage = duplicateCount == 1
+            ? '这条事项已在待确认列表或时间线中，无需重复添加'
+            : '识别出的 $duplicateCount 条事项均已存在，无需重复添加';
+        await _pushInboxMessage(
+          type: 'duplicate_skipped',
+          title: '已避免重复添加',
+          summary: '来源：${source.label}。$statusMessage',
+          status: '已处理',
+        );
+        await ttsService.speak(statusMessage);
       } else if (outcome.action == NoticeAction.unknown || notices.isEmpty) {
         errorMessage = outcome.feedback ?? '没有识别到可处理的校园事项';
         _errorCanRetry = true;
@@ -540,6 +569,9 @@ class AppController extends ChangeNotifier {
             : navigationCount > 0
             ? '已识别校园地点，请确认后打开地图'
             : '已生成 ${notices.length} 条待确认事项';
+        if (duplicateCount > 0) {
+          statusMessage = '$statusMessage，另有 $duplicateCount 条重复事项未再次添加';
+        }
         await _pushInboxMessage(
           type: clarificationCount > 0 ? 'clarification' : 'parse_result',
           title: clarificationCount > 0 ? '解析结果需要补充' : '已生成待确认事项',
@@ -601,6 +633,23 @@ class AppController extends ChangeNotifier {
     ParsedNotice notice, {
     bool navigateToTimeline = true,
   }) async {
+    if (!_confirmingNoticeIds.add(notice.id)) {
+      return '这条事项正在处理中，请稍候';
+    }
+    try {
+      return await _confirmNotice(
+        notice,
+        navigateToTimeline: navigateToTimeline,
+      );
+    } finally {
+      _confirmingNoticeIds.remove(notice.id);
+    }
+  }
+
+  Future<String?> _confirmNotice(
+    ParsedNotice notice, {
+    required bool navigateToTimeline,
+  }) async {
     final blocker = Validators.confirmBlocker(notice);
     if (blocker != null) {
       errorMessage = blocker;
@@ -658,8 +707,38 @@ class AppController extends ChangeNotifier {
       return null;
     }
 
+    final replacingEvent = events
+        .where((item) => item.id == notice.id)
+        .firstOrNull;
+    final duplicate = scheduleIntelligenceService.findConfirmedDuplicate(
+      notice,
+      confirmedEvents,
+      excludingEventId: replacingEvent?.id,
+    );
+    if (duplicate != null) {
+      pendingNotices = pendingNotices
+          .where((item) => item.id != notice.id)
+          .toList();
+      await _saveScopedPendingNotices();
+      errorMessage = null;
+      statusMessage = '时间线中已有《${duplicate.title}》，未重复写入';
+      await _pushInboxMessage(
+        type: 'duplicate_skipped',
+        title: '已避免重复写入时间线',
+        summary: statusMessage,
+        status: '已处理',
+      );
+      if (navigateToTimeline) currentTab = 1;
+      await ttsService.speak(statusMessage);
+      notifyListeners();
+      return null;
+    }
+
     await reminderService.requestPermissions();
     await _refreshRuntimeStatus(notify: false);
+    if (replacingEvent != null) {
+      await reminderService.cancelForEvent(replacingEvent);
+    }
     var event = EventItem.fromParsedNotice(
       notice,
       preference,
@@ -675,23 +754,33 @@ class AppController extends ChangeNotifier {
     await _saveScopedEvents();
     await _syncAchievementUnlocks();
     try {
-      await integrationService.addEventToCalendar(event);
-      statusMessage = '已加入时间线，并打开系统日历';
+      if (replacingEvent == null) {
+        await integrationService.addEventToCalendar(event);
+      }
+      statusMessage = replacingEvent == null
+          ? '已加入时间线，并打开系统日历'
+          : '已更新时间线事项与本地提醒';
       errorMessage = null;
       await _pushInboxMessage(
         type: 'timeline_confirm',
-        title: '事项已写入时间线',
-        summary: '《${event.title}》已写入时间线，并已尝试打开系统日历。',
+        title: replacingEvent == null ? '事项已写入时间线' : '时间线事项已更新',
+        summary: replacingEvent == null
+            ? '《${event.title}》已写入时间线，并已尝试打开系统日历。'
+            : '《${event.title}》已更新，旧提醒已取消并按当前偏好重新排程。',
         status: '已处理',
       );
     } catch (error) {
       final message = error.toString().replaceFirst('Exception: ', '');
-      statusMessage = '已加入时间线，系统日历未完成';
+      statusMessage = replacingEvent == null
+          ? '已加入时间线，系统日历未完成'
+          : '已更新时间线，本地提醒未完成';
       errorMessage = message;
       await _pushInboxMessage(
         type: 'timeline_confirm',
-        title: '事项已写入时间线',
-        summary: '《${event.title}》已写入时间线，但系统日历未完成：$message',
+        title: replacingEvent == null ? '事项已写入时间线' : '时间线事项已更新',
+        summary: replacingEvent == null
+            ? '《${event.title}》已写入时间线，但系统日历未完成：$message'
+            : '《${event.title}》已更新时间线，但本地提醒未完成：$message',
         status: '反馈',
       );
     }
@@ -1147,7 +1236,7 @@ class AppController extends ChangeNotifier {
   Future<void> reparseEvent(EventItem event) async {
     final nowIso = DateTime.now().toIso8601String();
     final notice = ParsedNotice(
-      id: 'reparse-${event.id}-${DateTime.now().millisecondsSinceEpoch}',
+      id: event.id,
       title: event.title,
       eventType: event.eventType,
       startTimeIso: event.startTimeIso,
@@ -1163,7 +1252,10 @@ class AppController extends ChangeNotifier {
       createdAtIso: nowIso,
       ownerAccount: currentAccountLabel,
     );
-    pendingNotices = [notice, ...pendingNotices];
+    pendingNotices = [
+      notice,
+      ...pendingNotices.where((item) => item.id != event.id),
+    ];
     await _saveScopedPendingNotices();
     currentTab = 0;
     statusMessage = '已将事项送回待确认列表';
@@ -1182,6 +1274,7 @@ class AppController extends ChangeNotifier {
     if (referenceTime == null) return const [];
     final conflicts = <EventItem>[];
     for (final event in confirmedEvents) {
+      if (event.id == notice.id) continue;
       final eventTime = event.startTime ?? event.deadline;
       if (eventTime == null) continue;
       final distance = eventTime.difference(referenceTime).inMinutes.abs();

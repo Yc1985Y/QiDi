@@ -1,6 +1,6 @@
 # 真实功能完成报告
 
-更新时间：`2026-07-17`
+更新时间：`2026-07-18`
 
 | 功能 | 真实实现 | 主要实现文件 | Windows / Android 验证 | 仍需真机验证 |
 |---|---|---|---|---|
@@ -12,7 +12,7 @@
 | vivo OCR、VLM 结构化解析 | 是 | `ocr_service.dart`、`parser_service.dart` | 真实 key、真实网络返回通过 | iOS 图片来源 |
 | vivo WebSocket 语音识别 | 是 | `speech_service.dart`、`vivo_asr_protocol.dart` | 模拟器真实返回文本并写入输入框 | 实体机中文语音质量、iOS 麦克风 |
 | clarification 与解析校验 | 是 | `review_page.dart`、`review_logic.dart` | 真实缺时间请求进入澄清；补齐后提升为 create_event | iOS 键盘 |
-| 冲突检测与确认写入 | 是 | `app.dart`、`review_page.dart` | 真实写入时间线通过 | 大数据量冲突样本 |
+| 冲突检测、智能去重与确认写入 | 是 | `app.dart`、`schedule_intelligence_service.dart`、`review_page.dart` | 精确事项去重、重新解析原位更新、并发确认保护和真实写入通过 | 大数据量冲突样本 |
 | 日/周/月时间线和日历总览 | 是 | `timeline_page.dart`、`timeline_logic.dart` | 打开、显示、切换和重启持久化通过 | iPad 宽屏 |
 | 时间线详情、编辑、复制、分享、副本、删除 | 是 | `timeline_page.dart`、`integration_service.dart` | 详情和真实删除通过 | 系统分享/地图实体机；编辑和副本继续人工验收 |
 | 本地提醒 | 是 | `reminder_service.dart` | 权限和排程链路已接入 | Android/iOS 到点触发 |
@@ -27,12 +27,13 @@
 ## 验证结果
 
 - `flutter analyze`：通过，`No issues found`。
-- `flutter test`：通过，31 项测试全部通过；画像、成就和账号存储测试覆盖永久解锁、账号隔离、偏好隔离与清理边界。
+- `flutter test`：通过，36 项测试全部通过；覆盖严格事项去重、不同日期不误合并、原事项更新，以及画像、成就、账号隔离和清理边界。
 - `flutter build apk --debug`：通过，并已覆盖安装到 `emulator-5554`。
 - 真实 vivo 解析、真实 vivo ASR、相机预览、clarification 补齐、时间线写入、重启持久化和删除均已在模拟器执行。
 - 用户画像与成就页已在 `emulator-5554` 使用现有账号真实数据验收：画像资料不足边界、1/8 成就解锁、真实首次达成日期和提醒排程进度显示正常，未发现布局溢出或应用崩溃。
 - 现有账号的 `first_weave` 成就已迁移为持久化解锁记录；强制结束并重启应用后，账号归属和 `2026-07-16` 首次达成日期保持不变。
 - 旧全局偏好已迁移为 `qa20260717` 专属偏好，迁移前后内容一致；账号会话、时间线和成就记录没有丢失。
+- 重复事项只在标题规范化后一致且时间精确到同一分钟时拦截；缺字段事项只按完全相同的真实来源原文去重，不使用模糊猜测。
 - 测试过程中创建的 `Student club activity` 已真实删除，测试账号未残留该记录。
 
 ## 未完成边界

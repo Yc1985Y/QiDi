@@ -1,6 +1,6 @@
 # Android -> Flutter 全量对齐矩阵
 
-更新时间：`2026-07-17`
+更新时间：`2026-07-18`
 
 唯一基线：`D:\桌面\本科\课题all\中国高校计算机大赛AIGC赛道\VisualSemanticAgent`
 
@@ -13,7 +13,7 @@
 | 分享导入 | `MainActivity.kt`、Manifest intent filters | `share_receive_service.dart`、Android Manifest、iOS Share Extension | Android 架构已对齐；iOS target 和 App Group 已配置到工程 | Android 编译和入口检查 | iPhone/iPad 分享文本、图片到 Runner |
 | vivo OCR / VLM | `VLMNetworkClient.kt`、`ResponseInterpreter.kt` | `ocr_service.dart`、`parser_service.dart` | 使用真实接口；批量事件、action、clarification、target_found 和缺字段语义已迁移 | 真实 key 解析两次成功；解析测试通过 | iOS 图片来源权限 |
 | vivo 实时 ASR | `VivoRealtimeAsrClient.kt` | `speech_service.dart`、`vivo_asr_protocol.dart` | 16 kHz PCM16、40 ms 帧、WebSocket 增量去重和 15 秒停止规则已迁移 | 模拟器真实返回语音文本，无系统 SpeechRecognizer 调用 | Android 真机中文语音质量；iPhone/iPad 麦克风 |
-| 解析校验页 | `ui/review/ReviewScreenModule.kt` | `review_page.dart`、`review_logic.dart` | 原文回看、字段编辑、冲突、校验、保存、确认和取消层级已对齐 | 真实 clarification 补齐后提升为 create_event 并写入时间线 | iOS 键盘和系统日历跳转 |
+| 解析校验页 | `ui/review/ReviewScreenModule.kt` | `review_page.dart`、`review_logic.dart`、`schedule_intelligence_service.dart` | 原文回看、字段编辑、冲突、校验、保存和确认已对齐；重复解析严格去重，历史重新解析更新原事项 | clarification 提升、精确去重和 36 项测试通过 | iOS 键盘和系统日历跳转 |
 | 时间线主视图 | `ui/timeline/TimelineScreenModule.kt` | `timeline_page.dart`、`timeline_logic.dart` | 本日/本周/本月、提醒 hero、日历入口、分组时间轴和空状态已对齐 | 模拟器打开、列表显示、无崩溃 | iOS 长列表和动态字体 |
 | 日历总览 | `ui/timeline/TimelineCalendarModule.kt` | `timeline_page.dart` | 独立路由、固定日格、周起始、事件点和当日列表已对齐 | 源码核对和路由回归 | iPad 宽屏视觉验收 |
 | 时间线详情 | `ui/timeline/TimelineDetailModule.kt` | `timeline_page.dart` | 查看/编辑、导航、复制、分享、副本、删除和关闭动作已保留 | 模拟器详情打开、持久化重启、真实删除 | 地图 App、系统分享面板实体机验收 |
