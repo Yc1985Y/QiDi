@@ -79,7 +79,7 @@ class _DiffuseGlow extends StatelessWidget {
           gradient: RadialGradient(
             colors: [
               color.withValues(alpha: opacity),
-              Colors.transparent,
+              color.withValues(alpha: 0),
             ],
           ),
         ),
@@ -266,7 +266,7 @@ class WeavingCard extends StatefulWidget {
   const WeavingCard({
     super.key,
     required this.child,
-    this.padding = const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+    this.padding = const EdgeInsets.symmetric(horizontal: 16, vertical: 15),
     this.color,
     this.onTap,
     this.interactionStyle = WeavingInteractionStyle.cardLift,

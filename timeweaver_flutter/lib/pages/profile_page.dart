@@ -500,7 +500,6 @@ class _ProfileIdentityCard extends StatelessWidget {
               ],
             ),
           ),
-          const SizedBox(width: 12),
           Container(
             width: 44,
             height: 44,
@@ -578,6 +577,7 @@ class _ProfileShortcutGrid extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return WeavingCard(
+      color: AppColors.surfaceLowest,
       child: Row(
         children: [
           _ShortcutEntry(

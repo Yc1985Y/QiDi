@@ -106,6 +106,25 @@ class _TimeWeaverAppState extends State<TimeWeaverApp> {
         ),
         scaffoldBackgroundColor: AppColors.background,
         fontFamily: 'Manrope',
+        navigationBarTheme: NavigationBarThemeData(
+          iconTheme: WidgetStateProperty.resolveWith<IconThemeData>((states) {
+            return IconThemeData(
+              color: states.contains(WidgetState.selected)
+                  ? AppColors.primary
+                  : AppColors.muted,
+            );
+          }),
+          labelTextStyle: WidgetStateProperty.resolveWith<TextStyle>((states) {
+            return TextStyle(
+              color: states.contains(WidgetState.selected)
+                  ? AppColors.primary
+                  : AppColors.muted,
+              fontFamily: 'Manrope',
+              fontSize: 12,
+              fontWeight: FontWeight.w500,
+            );
+          }),
+        ),
         textTheme: const TextTheme(
           displayLarge: TextStyle(
             fontFamily: 'PlusJakartaSans',

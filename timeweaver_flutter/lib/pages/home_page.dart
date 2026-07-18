@@ -155,7 +155,6 @@ class _HomeGreeting extends StatelessWidget {
             ],
           ),
         ),
-        const SizedBox(width: 10),
         Material(
           color: AppColors.surfaceWarm,
           shape: const CircleBorder(
